@@ -14,16 +14,13 @@ const (
 	DefaultSerfPort = 8301
 )
 
-// Config holds the configuration for a Server.
+// Config holds the configuration for a Agent.
 type Config struct {
-	// NodeID is a unique id for this node.
-	NodeID int32
+	// ID is a unique id for this agent.
+	ID int32
 
-	// NodeName is the name we use to advertise.
-	NodeName string
-
-	// NodeRole is the role this node plays in the cluster.
-	NodeRole string
+	// Name is the name the agent uses to advertise.
+	Name string
 
 	// DataDir is the directory to store our state in.
 	DataDir string
@@ -78,7 +75,7 @@ func DefaultConfig() *Config {
 	}
 
 	conf := &Config{
-		NodeName:          hostname,
+		Name:              hostname,
 		SerfConfig:        serfDefaultConfig(),
 		RaftConfig:        raft.DefaultConfig(),
 		RPCAddr:           DefaultRPCAddr,

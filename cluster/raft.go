@@ -17,28 +17,28 @@ const (
 	barrierWriteTimeout = 2 * time.Minute
 )
 
-func (s *Server) setupRaft() error {
-	s.config.RaftConfig.LocalID = raft.ServerID(fmt.Sprintf("%d", s.config.NodeID))
-	s.config.RaftConfig.StartAsLeader = s.config.StartAsLeader // This is only for testing
-	s.config.RaftConfig.NotifyCh = s.raftNotifyCh
-	s.config.RaftConfig.Logger = log.NewHCLBridge(s.config.Logger, "raft: ")
+func (a *Agent) setupRaft() error {
+	a.config.RaftConfig.LocalID = raft.ServerID(fmt.Sprintf("%d", a.config.ID))
+	a.config.RaftConfig.StartAsLeader = a.config.StartAsLeader // This is only for testing
+	a.config.RaftConfig.NotifyCh = a.raftNotifyCh
+	a.config.RaftConfig.Logger = log.NewHCLBridge(a.config.Logger, "raft: ")
 
 	// Create the FSM
-	s.fsm = fsm.New(s.config.NodeID)
+	a.fsm = fsm.New(a.config.ID)
 
 	// Create the raft transport
-	trans, err := raft.NewTCPTransportWithLogger(s.config.RPCAddr,
+	trans, err := raft.NewTCPTransportWithLogger(a.config.RPCAddr,
 		nil,
 		3,
 		10*time.Second,
-		log.NewBridge(s.config.Logger, log.Debug, "raft transport: "),
+		log.NewBridge(a.config.Logger, log.Debug, "raft transport: "),
 	)
 	if err != nil {
 		return err
 	}
-	s.raftTransport = trans
+	a.raftTransport = trans
 
-	path := filepath.Join(s.config.DataDir, raftState)
+	path := filepath.Join(a.config.DataDir, raftState)
 	if err := ensurePath(path, true); err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func (s *Server) setupRaft() error {
 	if err != nil {
 		return err
 	}
-	s.raftStore = store
+	a.raftStore = store
 
 	logStore, err := raft.NewLogCache(raftLogCacheSize, store)
 	if err != nil {
@@ -60,7 +60,7 @@ func (s *Server) setupRaft() error {
 		return err
 	}
 
-	if s.config.Bootstrap {
+	if a.config.Bootstrap {
 		// We only need to bootstrap a single server at the start of a cluster
 		hasState, err := raft.HasExistingState(logStore, store, snapshots)
 		if err != nil {
@@ -70,33 +70,33 @@ func (s *Server) setupRaft() error {
 			configuration := raft.Configuration{
 				Servers: []raft.Server{
 					raft.Server{
-						ID:      s.config.RaftConfig.LocalID,
+						ID:      a.config.RaftConfig.LocalID,
 						Address: trans.LocalAddr(),
 					},
 				},
 			}
-			if err := raft.BootstrapCluster(s.config.RaftConfig, logStore, store, snapshots, trans, configuration); err != nil {
+			if err := raft.BootstrapCluster(a.config.RaftConfig, logStore, store, snapshots, trans, configuration); err != nil {
 				return err
 			}
 		}
 	}
 
-	s.raft, err = raft.NewRaft(s.config.RaftConfig, s.fsm, logStore, store, snapshots, trans)
+	a.raft, err = raft.NewRaft(a.config.RaftConfig, a.fsm, logStore, store, snapshots, trans)
 	return err
 }
 
 // monitorLeadership monitors leadership change in raft, starting the leader loop
 // when the server becomes leader.
-func (s *Server) monitorLeadership() {
+func (a *Agent) monitorLeadership() {
 	var leaderLoopCh chan struct{}
 	var leaderLoop sync.WaitGroup
 
 	for {
 		select {
-		case leader := <-s.raftNotifyCh:
+		case leader := <-a.raftNotifyCh:
 			if leader {
 				if leaderLoopCh != nil {
-					s.log.Error("leader: attempted to start the leader loop while running", "node-id", s.config.NodeID)
+					a.log.Error("leader: attempted to start the leader loop while running")
 					continue
 				}
 
@@ -104,45 +104,45 @@ func (s *Server) monitorLeadership() {
 				leaderLoop.Add(1)
 				go func(ch chan struct{}) {
 					defer leaderLoop.Done()
-					s.leaderLoop(ch)
+					a.leaderLoop(ch)
 				}(leaderLoopCh)
 
-				s.log.Info("leader/%d: cluster leadership acquired", "node-id", s.config.NodeID)
+				a.log.Info("leader: cluster leadership acquired")
 
 				continue
 			}
 
 			if leaderLoopCh == nil {
-				s.log.Error("leader: attempted to stop the leader loop while not running", "node-id", s.config.NodeID)
+				a.log.Error("leader: attempted to stop the leader loop while not running")
 				continue
 			}
 
-			s.log.Debug("leader/%d: shutting down leader loop", "node-id", s.config.NodeID)
+			a.log.Debug("leader: shutting down leader loop")
 
 			close(leaderLoopCh)
 			leaderLoop.Wait()
 			leaderLoopCh = nil
 
-			s.log.Info("leader: cluster leadership lost", "node-id", s.config.NodeID)
+			a.log.Info("leader: cluster leadership lost")
 
-		case <-s.shutdownCh:
+		case <-a.shutdownCh:
 			return
 		}
 	}
 }
 
 // leaderLoop runs maintenaince tasks while the server is leader of the cluster.
-func (s *Server) leaderLoop(stopCh chan struct{}) {
+func (a *Agent) leaderLoop(stopCh chan struct{}) {
 RECONCILE:
-	interval := time.After(s.config.ReconcileInterval)
-	barrier := s.raft.Barrier(barrierWriteTimeout)
+	interval := time.After(a.config.ReconcileInterval)
+	barrier := a.raft.Barrier(barrierWriteTimeout)
 	if err := barrier.Error(); err != nil {
-		s.log.Error("leader: wait for barrier error", "node-id", s.config.NodeID, "error", err)
+		a.log.Error("leader: wait for barrier error", "error", err)
 		goto WAIT
 	}
 
-	if err := s.reconcile(); err != nil {
-		s.log.Error("leader: reconcile error", "node-id", s.config.NodeID, "error", err)
+	if err := a.reconcile(); err != nil {
+		a.log.Error("leader: reconcile error", "error", err)
 		goto WAIT
 	}
 
@@ -151,22 +151,22 @@ WAIT:
 		select {
 		case <-stopCh:
 			return
-		case <-s.shutdownCh:
+		case <-a.shutdownCh:
 			return
 		case <-interval:
 			goto RECONCILE
-		case member := <-s.reconcileCh:
-			if err := s.reconcileMember(member); err != nil {
-				s.log.Error("leader: reconcile member error", "node-id", s.config.NodeID, "error", err)
+		case member := <-a.reconcileCh:
+			if err := a.reconcileMember(member); err != nil {
+				a.log.Error("leader: reconcile member error", "error", err)
 			}
 		}
 	}
 }
 
-func (s *Server) reconcile() error {
+func (a *Agent) reconcile() error {
 	panic("TODO")
 }
 
-func (s *Server) reconcileMember(m serf.Member) error {
+func (a *Agent) reconcileMember(m serf.Member) error {
 	panic("TODO")
 }

@@ -14,4 +14,4 @@ Referencing the following to learn how to build reliable clusters:
 * [ ] Be able to cluster in a stable and recoverable way
 * [ ] Decent API to deal with that includes querying the store and getting store events.
 * [ ] Be able to automatically forward requests to the leader
-* [ ] mTLS encrypt all comms
+* [ ] mTLS encrypt all connections

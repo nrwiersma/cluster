@@ -25,7 +25,7 @@ const (
 	snapshotsRetained = 2
 )
 
-type Server struct {
+type Agent struct {
 	config *Config
 	log    log.Logger
 
@@ -44,26 +44,27 @@ type Server struct {
 	shutdown   bool
 }
 
-func New(cfg *Config) (*Server, error) {
+func New(cfg *Config) (*Agent, error) {
 	if cfg.EncryptKey != "" {
 		key, err := base64.StdEncoding.DecodeString(cfg.EncryptKey)
 		if err != nil {
-			return nil, errors.Wrap(err, "server: failed to decode encryption key")
+			return nil, errors.Wrap(err, "agent: failed to decode encryption key")
 		}
 
 		if err := memberlist.ValidateKey(key); err != nil {
-			return nil, errors.Wrap(err, "server: invalid encryption key")
+			return nil, errors.Wrap(err, "agent: invalid encryption key")
 		}
 
 		cfg.SerfConfig.MemberlistConfig.SecretKey = key
 	}
 
-	n := &Server{
+	n := &Agent{
 		config:       cfg,
 		raftNotifyCh: make(chan bool, 1),
 		eventCh:      make(chan serf.Event, 256),
 		reconcileCh:  make(chan serf.Member, 32),
 		shutdownCh:   make(chan struct{}),
+		log:          cfg.Logger,
 	}
 
 	if err := n.setupRaft(); err != nil {
@@ -84,66 +85,70 @@ func New(cfg *Config) (*Server, error) {
 	return n, nil
 }
 
-func (s *Server) Join(addrs ...string) error {
-	if _, err := s.serf.Join(addrs, true); err != nil {
-		return fmt.Errorf("cluster: error joining cluster: %w", err)
+func (a *Agent) Members() []serf.Member {
+	return a.serf.Members()
+}
+
+func (a *Agent) Join(addrs ...string) error {
+	if _, err := a.serf.Join(addrs, true); err != nil {
+		return fmt.Errorf("agent: error joining cluster: %w", err)
 	}
 	return nil
 }
 
-func (s *Server) Leave(ctx context.Context) error {
-	numPeers, err := s.numPeers()
+func (a *Agent) Leave(ctx context.Context) error {
+	numPeers, err := a.numPeers()
 	if err != nil {
-		return errors.Wrap(err, "cluster: check raft peers error")
+		return errors.Wrap(err, "agent: check raft peers error")
 	}
 
-	isLeader := s.isLeader()
+	isLeader := a.isLeader()
 	if isLeader && numPeers > 1 {
-		future := s.raft.RemoveServer(raft.ServerID(fmt.Sprintf("%d", s.config.NodeID)), 0, 0)
+		future := a.raft.RemoveServer(raft.ServerID(fmt.Sprintf("%d", a.config.ID)), 0, 0)
 		if err := future.Error(); err != nil {
-			s.log.Error("broker: remove ourself as raft peer error", "node-id", s.config.NodeID, "error", err)
+			a.log.Error("agent: remove ourself as raft peer error", "error", err)
 		}
 	}
 
-	if s.serf != nil {
-		if err := s.serf.Leave(); err != nil {
-			return errors.Wrap(err, "cluster: error leaving cluster")
+	if a.serf != nil {
+		if err := a.serf.Leave(); err != nil {
+			return errors.Wrap(err, "agent: error leaving cluster")
 		}
 	}
 
-	time.Sleep(s.config.LeaveDrainTime)
+	time.Sleep(a.config.LeaveDrainTime)
 
 	// TODO: Other stuff here
 
 	return nil
 }
 
-func (s *Server) Close() error {
-	s.shutdownMu.Lock()
-	defer s.shutdownMu.Unlock()
+func (a *Agent) Close() error {
+	a.shutdownMu.Lock()
+	defer a.shutdownMu.Unlock()
 
-	if s.shutdown {
+	if a.shutdown {
 		return nil
 	}
 
-	s.shutdown = true
-	close(s.shutdownCh)
+	a.shutdown = true
+	close(a.shutdownCh)
 
-	if s.serf != nil {
-		if err := s.serf.Shutdown(); err != nil {
-			return fmt.Errorf("cluster: error shutting down serf: %w", err)
+	if a.serf != nil {
+		if err := a.serf.Shutdown(); err != nil {
+			return fmt.Errorf("agent: error shutting down serf: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (s *Server) isLeader() bool {
-	return s.raft.State() == raft.Leader
+func (a *Agent) isLeader() bool {
+	return a.raft.State() == raft.Leader
 }
 
-func (s *Server) numPeers() (int, error) {
-	future := s.raft.GetConfiguration()
+func (a *Agent) numPeers() (int, error) {
+	future := a.raft.GetConfiguration()
 	if err := future.Error(); err != nil {
 		return 0, err
 	}
