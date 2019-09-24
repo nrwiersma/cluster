@@ -140,6 +140,17 @@ func (a *Agent) Close() error {
 		}
 	}
 
+	if a.raft != nil {
+		_ = a.raftTransport.Close()
+		future := a.raft.Shutdown()
+		if err := future.Error(); err != nil {
+			a.log.Error("agent: shutdown error", "error", err)
+		}
+		if a.raftStore != nil {
+			_ = a.raftStore.Close()
+		}
+	}
+
 	return nil
 }
 

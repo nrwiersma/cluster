@@ -3,6 +3,7 @@ package cluster
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
 	"github.com/nrwiersma/cluster/cluster/fsm"
+	"github.com/nrwiersma/cluster/cluster/metadata"
 	"github.com/nrwiersma/cluster/pkg/log"
 )
 
@@ -156,17 +158,128 @@ WAIT:
 		case <-interval:
 			goto RECONCILE
 		case member := <-a.reconcileCh:
-			if err := a.reconcileMember(member); err != nil {
-				a.log.Error("leader: reconcile member error", "error", err)
-			}
+			a.reconcileMember(member)
 		}
 	}
 }
 
 func (a *Agent) reconcile() error {
-	panic("TODO")
+	members := a.Members()
+	knownMembers := make(map[string]struct{})
+	for _, member := range members {
+		a.reconcileMember(member)
+
+		meta, ok := metadata.IsAgent(member)
+		if !ok {
+			continue
+		}
+
+		knownMembers[meta.ID.String()] = struct{}{}
+	}
+
+	return a.reconcileReaped(knownMembers)
 }
 
-func (a *Agent) reconcileMember(m serf.Member) error {
-	panic("TODO")
+func (a *Agent) reconcileReaped(known map[string]struct{}) error {
+	future := a.raft.GetConfiguration()
+	if future.Error() != nil {
+		return future.Error()
+	}
+
+	raftConfig := future.Configuration()
+	for _, server := range raftConfig.Servers {
+		idStr := string(server.ID)
+		if _, ok := known[idStr]; ok {
+			continue
+		}
+
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			continue
+		}
+		member := serf.Member{
+			Tags: metadata.Agent{
+				ID: metadata.NodeID(id),
+			}.ToTags(),
+		}
+		if err := a.handleReapMember(member); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (a *Agent) reconcileMember(m serf.Member) {
+	var err error
+
+	switch m.Status {
+	case serf.StatusAlive:
+		err = a.handleAliveMember(m)
+
+	case serf.StatusFailed:
+		err = a.handleFailedMember(m)
+
+	case StatusReap:
+		err = a.handleReapMember(m)
+
+	case serf.StatusLeft:
+		err = a.handleLeftMember(m)
+	}
+
+	if err != nil {
+		a.log.Error("leader: reconcile member", "member", m.Name, "error", err)
+	}
+}
+
+func (a *Agent) handleAliveMember(m serf.Member) error {
+	agent, ok := metadata.IsAgent(m)
+	if ok {
+		if err := a.joinCluster(m, agent); err != nil {
+			return err
+		}
+	}
+
+	// TODO: tell someone about the node
+
+	return nil
+}
+
+func (a *Agent) handleFailedMember(m serf.Member) error {
+	//agent, ok := metadata.IsAgent(m)
+	//if !ok {
+	//	return nil
+	//}
+
+	// TODO: tell someone about the node
+
+	return nil
+}
+
+func (a *Agent) handleLeftMember(m serf.Member) error {
+	return a.handleDeregisterMember("left", m)
+}
+
+func (a *Agent) handleReapMember(member serf.Member) error {
+	return a.handleDeregisterMember("reaped", member)
+}
+
+func (a *Agent) handleDeregisterMember(reason string, member serf.Member) error {
+	agent, ok := metadata.IsAgent(member)
+	if !ok {
+		return nil
+	}
+
+	if agent.ID.Int32() == a.config.ID {
+		a.log.Debug("leader: deregistering self should be done by follower")
+		return nil
+	}
+
+	if err := a.removeServer(member, agent); err != nil {
+		return err
+	}
+
+	// TODO: tell someone about the node
+
+	return nil
 }

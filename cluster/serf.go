@@ -10,6 +10,8 @@ import (
 	"github.com/nrwiersma/cluster/pkg/log"
 )
 
+const StatusReap = serf.MemberStatus(-1)
+
 func (a *Agent) setupSerf(config *serf.Config, ch chan serf.Event, path string) (*serf.Serf, error) {
 	config.Init()
 	config.NodeName = a.config.Name
@@ -90,7 +92,13 @@ func (a *Agent) localMemberEvent(e serf.MemberEvent) {
 		return
 	}
 
+	isReap := e.EventType() == serf.EventMemberReap
+
 	for _, m := range e.Members {
+		if isReap {
+			m.Status = StatusReap
+		}
+
 		select {
 		case a.reconcileCh <- m:
 		default:
