@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
@@ -58,13 +57,18 @@ func New(cfg *Config) (*Agent, error) {
 		cfg.SerfConfig.MemberlistConfig.SecretKey = key
 	}
 
+	logger := cfg.Logger
+	if logger == nil {
+		logger = log.Null
+	}
+
 	n := &Agent{
 		config:       cfg,
 		raftNotifyCh: make(chan bool, 1),
 		eventCh:      make(chan serf.Event, 256),
 		reconcileCh:  make(chan serf.Member, 32),
 		shutdownCh:   make(chan struct{}),
-		log:          cfg.Logger,
+		log:          logger,
 	}
 
 	if err := n.setupRaft(); err != nil {
@@ -96,7 +100,7 @@ func (a *Agent) Join(addrs ...string) error {
 	return nil
 }
 
-func (a *Agent) Leave(ctx context.Context) error {
+func (a *Agent) Leave() error {
 	numPeers, err := a.numPeers()
 	if err != nil {
 		return errors.Wrap(err, "agent: check raft peers error")
@@ -106,7 +110,7 @@ func (a *Agent) Leave(ctx context.Context) error {
 	if isLeader && numPeers > 1 {
 		future := a.raft.RemoveServer(raft.ServerID(fmt.Sprintf("%d", a.config.ID)), 0, 0)
 		if err := future.Error(); err != nil {
-			a.log.Error("agent: remove ourself as raft peer error", "error", err)
+			a.log.Error("agent: error removing ourselves as raft peer", "error", err)
 		}
 	}
 

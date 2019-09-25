@@ -67,8 +67,8 @@ type Config struct {
 	StartAsLeader bool
 }
 
-// DefaultConfig creates/returns a default configuration.
-func DefaultConfig() *Config {
+// NewConfig creates/returns a default configuration.
+func NewConfig() *Config {
 	hostname, err := os.Hostname()
 	if err != nil {
 		panic(err)

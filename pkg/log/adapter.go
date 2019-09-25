@@ -26,6 +26,10 @@ type Bridge struct {
 
 // NewBridge returns a log bridge.
 func NewBridge(l log.Logger, lvl Level, prefix string) *stdlog.Logger {
+	if l == nil {
+		l = log.Null
+	}
+
 	adpt := &Bridge{
 		log:    l,
 		lvl:    lvl,
@@ -57,6 +61,10 @@ type HCLBridge struct {
 }
 
 func NewHCLBridge(l log.Logger, prefix string) hclog.Logger {
+	if l == nil {
+		l = log.Null
+	}
+
 	return &HCLBridge{
 		log:    l,
 		prefix: prefix,
@@ -64,23 +72,23 @@ func NewHCLBridge(l log.Logger, prefix string) hclog.Logger {
 }
 
 func (h *HCLBridge) Trace(msg string, args ...interface{}) {
-	h.log.Debug(msg, args)
+	h.log.Debug(h.prefix+msg, args...)
 }
 
 func (h *HCLBridge) Debug(msg string, args ...interface{}) {
-	h.log.Debug(msg, args)
+	h.log.Debug(h.prefix+msg, args...)
 }
 
 func (h *HCLBridge) Info(msg string, args ...interface{}) {
-	h.log.Info(msg, args)
+	h.log.Info(h.prefix+msg, args...)
 }
 
 func (h *HCLBridge) Warn(msg string, args ...interface{}) {
-	h.log.Info(msg, args)
+	h.log.Info(h.prefix+msg, args...)
 }
 
 func (h *HCLBridge) Error(msg string, args ...interface{}) {
-	h.log.Error(msg, args)
+	h.log.Error(h.prefix+msg, args...)
 }
 
 func (h *HCLBridge) IsTrace() bool {

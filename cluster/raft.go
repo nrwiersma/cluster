@@ -71,7 +71,7 @@ func (a *Agent) setupRaft() error {
 		if !hasState {
 			configuration := raft.Configuration{
 				Servers: []raft.Server{
-					raft.Server{
+					{
 						ID:      a.config.RaftConfig.LocalID,
 						Address: trans.LocalAddr(),
 					},
@@ -281,5 +281,92 @@ func (a *Agent) handleDeregisterMember(reason string, member serf.Member) error 
 
 	// TODO: tell someone about the node
 
+	return nil
+}
+
+func (a *Agent) joinCluster(m serf.Member, agent *metadata.Agent) error {
+	if agent.Bootstrap {
+		for _, member := range a.Members() {
+			p, ok := metadata.IsAgent(member)
+			if ok && member.Name != m.Name && p.Bootstrap {
+				a.log.Error("leader: multiple nodes in bootstrap mode. there can only be one.")
+				return nil
+			}
+		}
+	}
+
+	configFuture := a.raft.GetConfiguration()
+	if err := configFuture.Error(); err != nil {
+		return err
+	}
+
+	// Processing ourselves could result in trying to remove ourselves to
+	// fix up our address, which would make us step down. This is only
+	// safe to attempt if there are multiple servers available.
+	if m.Name == a.config.Name {
+		if l := len(configFuture.Configuration().Servers); l < 3 {
+			a.log.Debug("leader: skipping self join since cluster is too small", "servers", l)
+			return nil
+		}
+	}
+
+	for _, server := range configFuture.Configuration().Servers {
+		if server.Address == raft.ServerAddress(agent.RaftAddr) || server.ID == raft.ServerID(agent.ID.String()) {
+			if server.Address == raft.ServerAddress(agent.RaftAddr) && server.ID == raft.ServerID(agent.ID.String()) {
+				// no-op if this is being called on an existing server
+				return nil
+			}
+
+			future := a.raft.RemoveServer(server.ID, 0, 0)
+			if server.Address == raft.ServerAddress(agent.RaftAddr) {
+				if err := future.Error(); err != nil {
+					return fmt.Errorf("leader: error removing server with duplicate address %q: %s", server.Address, err)
+				}
+				a.log.Info("leader: removed server with duplicated address", "address", server.Address)
+			} else {
+				if err := future.Error(); err != nil {
+					return fmt.Errorf("leader: removing server with duplicate ID %q: %s", server.ID, err)
+				}
+				a.log.Info("leader: removed server with duplicate ID", "id", server.ID)
+			}
+		}
+	}
+
+	if agent.NonVoter {
+		addFuture := a.raft.AddNonvoter(raft.ServerID(agent.ID.String()), raft.ServerAddress(agent.RaftAddr), 0, 0)
+		if err := addFuture.Error(); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	a.log.Debug("leader: join cluster", "voter", agent.ID)
+
+	addFuture := a.raft.AddVoter(raft.ServerID(agent.ID.String()), raft.ServerAddress(agent.RaftAddr), 0, 0)
+	if err := addFuture.Error(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Agent) removeServer(m serf.Member, agent *metadata.Agent) error {
+	configFuture := a.raft.GetConfiguration()
+	if err := configFuture.Error(); err != nil {
+		return err
+	}
+
+	for _, server := range configFuture.Configuration().Servers {
+		if server.ID != raft.ServerID(agent.ID.String()) {
+			continue
+		}
+
+		a.log.Info("leader: removing server by id", "id", server.ID)
+
+		future := a.raft.RemoveServer(raft.ServerID(agent.ID.String()), 0, 0)
+		if err := future.Error(); err != nil {
+			return err
+		}
+	}
 	return nil
 }

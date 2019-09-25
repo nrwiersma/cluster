@@ -29,7 +29,7 @@ type Agent struct {
 }
 
 // ToTags converts the agent information into serf member tags.
-func (a *Agent) ToTags() map[string]string {
+func (a Agent) ToTags() map[string]string {
 	tags := map[string]string{
 		"cluster":   "test",
 		"id":        fmt.Sprintf("%d", a.ID),
