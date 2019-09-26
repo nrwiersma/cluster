@@ -16,13 +16,13 @@ func (a *Agent) setupSerf(config *serf.Config, ch chan serf.Event, path string) 
 	config.Init()
 	config.NodeName = a.config.Name
 	config.Tags = metadata.Agent{
-		ID:        metadata.NodeID(a.config.ID),
+		ID:        a.config.ID,
 		Name:      a.config.Name,
 		Bootstrap: a.config.Bootstrap,
 		Expect:    a.config.BootstrapExpect,
 		NonVoter:  a.config.NonVoter,
-		RaftAddr:  a.config.RPCAddr,
 		SerfAddr:  fmt.Sprintf("%a:%d", a.config.SerfConfig.MemberlistConfig.BindAddr, a.config.SerfConfig.MemberlistConfig.BindPort),
+		RPCAddr:   a.config.RPCAddr,
 	}.ToTags()
 	config.Logger = log.NewBridge(a.config.Logger, log.Debug, "serf: ")
 	config.MemberlistConfig.Logger = log.NewBridge(a.config.Logger, log.Debug, "memberlist: ")
@@ -147,10 +147,10 @@ func (a *Agent) maybeBootstrap() {
 	var configuration raft.Configuration
 	addrs := make([]string, 0, len(agents))
 	for _, agent := range agents {
-		addr := agent.RaftAddr
+		addr := agent.RPCAddr
 		addrs = append(addrs, addr)
 		peer := raft.Server{
-			ID:      raft.ServerID(agent.ID.String()),
+			ID:      raft.ServerID(agent.ID),
 			Address: raft.ServerAddress(addr),
 		}
 		configuration.Servers = append(configuration.Servers, peer)

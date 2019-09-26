@@ -7,34 +7,29 @@ import (
 	"github.com/hashicorp/serf/serf"
 )
 
-type NodeID int32
+const (
+	clusterName = "test"
+)
 
-func (n NodeID) Int32() int32 {
-	return int32(n)
-}
-
-func (n NodeID) String() string {
-	return fmt.Sprintf("%d", n)
-}
-
+// Agent is an cluster agent with its configuration.
 type Agent struct {
-	ID        NodeID
+	ID        string
 	Name      string
 	Bootstrap bool
 	Expect    int
 	NonVoter  bool
 	Status    serf.MemberStatus
-	RaftAddr  string
 	SerfAddr  string
+	RPCAddr   string
 }
 
 // ToTags converts the agent information into serf member tags.
 func (a Agent) ToTags() map[string]string {
 	tags := map[string]string{
-		"cluster":   "test",
-		"id":        fmt.Sprintf("%d", a.ID),
-		"raft_addr": a.RaftAddr,
+		"cluster":   clusterName,
+		"id":        a.ID,
 		"serf_addr": a.SerfAddr,
+		"rpc_addr":  a.RPCAddr,
 	}
 
 	if a.Bootstrap {
@@ -52,7 +47,7 @@ func (a Agent) ToTags() map[string]string {
 
 // IsAgent checks if the given serf member is an agent.
 func IsAgent(m serf.Member) (*Agent, bool) {
-	if m.Tags["cluster"] != "test" {
+	if m.Tags["cluster"] != clusterName {
 		return nil, false
 	}
 
@@ -69,20 +64,22 @@ func IsAgent(m serf.Member) (*Agent, bool) {
 	_, bootstrap := m.Tags["bootstrap"]
 	_, nonVoter := m.Tags["non_voter"]
 
-	idStr := m.Tags["id"]
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		return nil, false
-	}
-
 	return &Agent{
-		ID:        NodeID(id),
+		ID:        m.Tags["id"],
 		Name:      m.Tags["name"],
 		Bootstrap: bootstrap,
 		Expect:    expect,
 		NonVoter:  nonVoter,
 		Status:    m.Status,
-		RaftAddr:  m.Tags["raft_addr"],
 		SerfAddr:  m.Tags["serf_lan_addr"],
+		RPCAddr:   m.Tags["rpc_addr"],
 	}, true
+}
+
+// AgentTags is used to create tags from a raft server.
+func AgentTags(id string) map[string]string {
+	return map[string]string{
+		"cluster": clusterName,
+		"id":      id,
+	}
 }

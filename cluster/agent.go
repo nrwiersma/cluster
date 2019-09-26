@@ -3,8 +3,10 @@ package cluster
 import (
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/hashicorp/serf/serf"
 	"github.com/nrwiersma/cluster/cluster/fsm"
 	"github.com/pkg/errors"
+	"github.com/segmentio/ksuid"
 )
 
 const (
@@ -57,6 +60,11 @@ func New(cfg *Config) (*Agent, error) {
 		cfg.SerfConfig.MemberlistConfig.SecretKey = key
 	}
 
+	if cfg.BootstrapExpect == 1 {
+		cfg.Bootstrap = true
+		cfg.BootstrapExpect = 0
+	}
+
 	logger := cfg.Logger
 	if logger == nil {
 		logger = log.Null
@@ -71,9 +79,13 @@ func New(cfg *Config) (*Agent, error) {
 		log:          logger,
 	}
 
+	if err := n.setupAgentID(); err != nil {
+		return nil, errors.Wrap(err, "agent: error setting up agent id")
+	}
+
 	if err := n.setupRaft(); err != nil {
 		n.Close()
-		return nil, fmt.Errorf("node: %v", err)
+		return nil, fmt.Errorf("agent: %v", err)
 	}
 
 	var err error
@@ -154,6 +166,39 @@ func (a *Agent) Close() error {
 			_ = a.raftStore.Close()
 		}
 	}
+
+	return nil
+}
+
+func (a *Agent) setupAgentID() error {
+	if a.config.ID != "" {
+		return nil
+	}
+
+	fileID := filepath.Join(a.config.DataDir, "node-id")
+	if _, err := os.Stat(fileID); err == nil {
+		rawID, err := ioutil.ReadFile(fileID)
+		if err != nil {
+			return err
+		}
+
+		id := strings.TrimSpace(string(rawID))
+		if _, err := ksuid.Parse(id); err != nil {
+			return err
+		}
+
+		a.config.ID = id
+		return nil
+	}
+
+	id := ksuid.New().String()
+	if err := ensurePath(fileID, false); err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(fileID, []byte(id), 0600); err != nil {
+		return err
+	}
+	a.config.ID = id
 
 	return nil
 }

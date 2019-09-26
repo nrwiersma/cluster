@@ -1,10 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"math/rand"
 	"net"
-	"path/filepath"
 	"strconv"
 
 	"github.com/hamba/cmd"
@@ -28,23 +25,17 @@ func newApplication(c *cmd.Context) (*cluster.Application, error) {
 // Agent ===================================
 
 func newAgent(c *cmd.Context) (*clus.Agent, error) {
-	id := c.Int(flagID)
-	if id == 0 {
-		id = rand.Int()
-		c.Logger().Info(fmt.Sprintf("agent: ID not selected; using %d", id))
-	}
-
-	// TODO: remove this, temp
-	dataDir := filepath.Join(c.String(flagDataDir), strconv.Itoa(id))
-
 	cfg := clus.NewConfig()
-	cfg.ID = int32(id)
-	cfg.DataDir = dataDir
+	cfg.DataDir = c.String(flagDataDir)
 	cfg.EncryptKey = c.String(flagEncryptKey)
-	cfg.RPCAddr = c.String(flagRaftAddr)
+	cfg.RPCAddr = c.String(flagRPCAddr)
 	cfg.Bootstrap = c.Bool(flagBootstrap)
 	cfg.BootstrapExpect = c.Int(flagBootstrapExpect)
 	cfg.Logger = c.Logger()
+
+	if id := c.String(flagID); id != "" {
+		cfg.ID = id
+	}
 
 	if name := c.String(flagName); name != "" {
 		cfg.Name = name

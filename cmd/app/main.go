@@ -16,7 +16,7 @@ const (
 	flagDataDir         = "data-dir"
 	flagSerfAddr        = "serf-addr"
 	flagEncryptKey      = "encrypt"
-	flagRaftAddr        = "raft-addr"
+	flagRPCAddr         = "rpc-addr"
 	flagBootstrap       = "bootstrap"
 	flagBootstrapExpect = "bootstrap-expect"
 	flagJoin            = "join"
@@ -29,10 +29,9 @@ var commands = []*cli.Command{
 		Name:  "agent",
 		Usage: "Run the cluster agent",
 		Flags: cmd.Flags{
-			&cli.IntFlag{
+			&cli.StringFlag{
 				Name:    flagID,
 				Usage:   "The agent id.",
-				Value:   0,
 				EnvVars: []string{"AGENT_ID"},
 			},
 			&cli.StringFlag{
@@ -58,10 +57,10 @@ var commands = []*cli.Command{
 				EnvVars: []string{"AGENT_ENCRYPTION_KEY"},
 			},
 			&cli.StringFlag{
-				Name:    flagRaftAddr,
-				Usage:   "The address for Raft to bind and advertise on.",
+				Name:    flagRPCAddr,
+				Usage:   "The address for the RPC to bind and advertise on.",
 				Value:   "127.0.0.1:8300",
-				EnvVars: []string{"AGENT_RAFT_ADDR"},
+				EnvVars: []string{"AGENT_RPC_ADDR"},
 			},
 			&cli.BoolFlag{
 				Name:    flagBootstrap,
@@ -71,7 +70,7 @@ var commands = []*cli.Command{
 			&cli.IntFlag{
 				Name:    flagBootstrapExpect,
 				Usage:   "The number of expected agents in the cluster.",
-				EnvVars: []string{"AGENT_EXPECT"},
+				EnvVars: []string{"AGENT_BOOTSTRAP_EXPECT"},
 			},
 			&cli.StringSliceFlag{
 				Name:    flagJoin,
@@ -81,6 +80,11 @@ var commands = []*cli.Command{
 			},
 		}.Merge(cmd.CommonFlags),
 		Action: runAgent,
+	},
+	{
+		Name:   "keygen",
+		Usage:  "Generate an encryption key",
+		Action: runKeyGen,
 	},
 }
 

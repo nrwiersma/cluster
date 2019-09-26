@@ -13,5 +13,6 @@ require (
 	github.com/hashicorp/serf v0.8.3
 	github.com/joho/godotenv v1.3.0
 	github.com/pkg/errors v0.8.1
+	github.com/segmentio/ksuid v1.0.2
 	gopkg.in/urfave/cli.v2 v2.0.0-20190806201727-b62605953717
 )

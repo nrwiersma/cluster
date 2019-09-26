@@ -3,7 +3,6 @@ package cluster
 import (
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"time"
 
@@ -174,7 +173,7 @@ func (a *Agent) reconcile() error {
 			continue
 		}
 
-		knownMembers[meta.ID.String()] = struct{}{}
+		knownMembers[meta.ID] = struct{}{}
 	}
 
 	return a.reconcileReaped(knownMembers)
@@ -193,14 +192,8 @@ func (a *Agent) reconcileReaped(known map[string]struct{}) error {
 			continue
 		}
 
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			continue
-		}
 		member := serf.Member{
-			Tags: metadata.Agent{
-				ID: metadata.NodeID(id),
-			}.ToTags(),
+			Tags: metadata.AgentTags(idStr),
 		}
 		if err := a.handleReapMember(member); err != nil {
 			return err
@@ -270,7 +263,7 @@ func (a *Agent) handleDeregisterMember(reason string, member serf.Member) error 
 		return nil
 	}
 
-	if agent.ID.Int32() == a.config.ID {
+	if agent.ID == a.config.ID {
 		a.log.Debug("leader: deregistering self should be done by follower")
 		return nil
 	}
@@ -311,14 +304,14 @@ func (a *Agent) joinCluster(m serf.Member, agent *metadata.Agent) error {
 	}
 
 	for _, server := range configFuture.Configuration().Servers {
-		if server.Address == raft.ServerAddress(agent.RaftAddr) || server.ID == raft.ServerID(agent.ID.String()) {
-			if server.Address == raft.ServerAddress(agent.RaftAddr) && server.ID == raft.ServerID(agent.ID.String()) {
+		if server.Address == raft.ServerAddress(agent.RPCAddr) || server.ID == raft.ServerID(agent.ID) {
+			if server.Address == raft.ServerAddress(agent.RPCAddr) && server.ID == raft.ServerID(agent.ID) {
 				// no-op if this is being called on an existing server
 				return nil
 			}
 
 			future := a.raft.RemoveServer(server.ID, 0, 0)
-			if server.Address == raft.ServerAddress(agent.RaftAddr) {
+			if server.Address == raft.ServerAddress(agent.RPCAddr) {
 				if err := future.Error(); err != nil {
 					return fmt.Errorf("leader: error removing server with duplicate address %q: %s", server.Address, err)
 				}
@@ -333,7 +326,7 @@ func (a *Agent) joinCluster(m serf.Member, agent *metadata.Agent) error {
 	}
 
 	if agent.NonVoter {
-		addFuture := a.raft.AddNonvoter(raft.ServerID(agent.ID.String()), raft.ServerAddress(agent.RaftAddr), 0, 0)
+		addFuture := a.raft.AddNonvoter(raft.ServerID(agent.ID), raft.ServerAddress(agent.RPCAddr), 0, 0)
 		if err := addFuture.Error(); err != nil {
 			return err
 		}
@@ -342,7 +335,7 @@ func (a *Agent) joinCluster(m serf.Member, agent *metadata.Agent) error {
 
 	a.log.Debug("leader: join cluster", "voter", agent.ID)
 
-	addFuture := a.raft.AddVoter(raft.ServerID(agent.ID.String()), raft.ServerAddress(agent.RaftAddr), 0, 0)
+	addFuture := a.raft.AddVoter(raft.ServerID(agent.ID), raft.ServerAddress(agent.RPCAddr), 0, 0)
 	if err := addFuture.Error(); err != nil {
 		return err
 	}
@@ -357,13 +350,13 @@ func (a *Agent) removeServer(m serf.Member, agent *metadata.Agent) error {
 	}
 
 	for _, server := range configFuture.Configuration().Servers {
-		if server.ID != raft.ServerID(agent.ID.String()) {
+		if server.ID != raft.ServerID(agent.ID) {
 			continue
 		}
 
 		a.log.Info("leader: removing server by id", "id", server.ID)
 
-		future := a.raft.RemoveServer(raft.ServerID(agent.ID.String()), 0, 0)
+		future := a.raft.RemoveServer(raft.ServerID(agent.ID), 0, 0)
 		if err := future.Error(); err != nil {
 			return err
 		}

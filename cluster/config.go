@@ -17,7 +17,7 @@ const (
 // Config holds the configuration for a Agent.
 type Config struct {
 	// ID is a unique id for this agent.
-	ID int32
+	ID string
 
 	// Name is the name the agent uses to advertise.
 	Name string

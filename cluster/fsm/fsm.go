@@ -12,7 +12,7 @@ import (
 
 type FSM struct{}
 
-func New(nodeID int32) *FSM {
+func New(nodeID string) *FSM {
 	return &FSM{}
 }
 
