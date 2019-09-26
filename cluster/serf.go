@@ -10,7 +10,7 @@ import (
 	"github.com/nrwiersma/cluster/pkg/log"
 )
 
-const StatusReap = serf.MemberStatus(-1)
+const statusReap = serf.MemberStatus(-1)
 
 func (a *Agent) setupSerf(config *serf.Config, ch chan serf.Event, path string) (*serf.Serf, error) {
 	config.Init()
@@ -21,7 +21,7 @@ func (a *Agent) setupSerf(config *serf.Config, ch chan serf.Event, path string) 
 		Bootstrap: a.config.Bootstrap,
 		Expect:    a.config.BootstrapExpect,
 		NonVoter:  a.config.NonVoter,
-		SerfAddr:  fmt.Sprintf("%a:%d", a.config.SerfConfig.MemberlistConfig.BindAddr, a.config.SerfConfig.MemberlistConfig.BindPort),
+		SerfAddr:  fmt.Sprintf("%s:%d", a.config.SerfConfig.MemberlistConfig.BindAddr, a.config.SerfConfig.MemberlistConfig.BindPort),
 		RPCAddr:   a.config.RPCAddr,
 	}.ToTags()
 	config.Logger = log.NewBridge(a.config.Logger, log.Debug, "serf: ")
@@ -96,7 +96,7 @@ func (a *Agent) localMemberEvent(e serf.MemberEvent) {
 
 	for _, m := range e.Members {
 		if isReap {
-			m.Status = StatusReap
+			m.Status = statusReap
 		}
 
 		select {

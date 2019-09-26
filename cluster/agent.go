@@ -27,6 +27,7 @@ const (
 	snapshotsRetained = 2
 )
 
+// Agent is a cluster server that manages Raft and Serf.
 type Agent struct {
 	config *Config
 	log    log.Logger
@@ -46,6 +47,7 @@ type Agent struct {
 	shutdown   bool
 }
 
+// New returns a new agent with the given configuration.
 func New(cfg *Config) (*Agent, error) {
 	if cfg.EncryptKey != "" {
 		key, err := base64.StdEncoding.DecodeString(cfg.EncryptKey)
@@ -101,10 +103,12 @@ func New(cfg *Config) (*Agent, error) {
 	return n, nil
 }
 
+// Members returns the members in the serf cluster.
 func (a *Agent) Members() []serf.Member {
 	return a.serf.Members()
 }
 
+// Join joins the cluster using the given Serf addresses.
 func (a *Agent) Join(addrs ...string) error {
 	if _, err := a.serf.Join(addrs, true); err != nil {
 		return fmt.Errorf("agent: error joining cluster: %w", err)
@@ -112,6 +116,7 @@ func (a *Agent) Join(addrs ...string) error {
 	return nil
 }
 
+// Leave leaves the cluster gracefully.
 func (a *Agent) Leave() error {
 	numPeers, err := a.numPeers()
 	if err != nil {
@@ -139,6 +144,9 @@ func (a *Agent) Leave() error {
 	return nil
 }
 
+// Close closes the agent.
+// This is not a graceful shutdown. Call Leave to leave
+// gracefully.
 func (a *Agent) Close() error {
 	a.shutdownMu.Lock()
 	defer a.shutdownMu.Unlock()

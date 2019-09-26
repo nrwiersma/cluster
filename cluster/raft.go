@@ -187,13 +187,13 @@ func (a *Agent) reconcileReaped(known map[string]struct{}) error {
 
 	raftConfig := future.Configuration()
 	for _, server := range raftConfig.Servers {
-		idStr := string(server.ID)
-		if _, ok := known[idStr]; ok {
+		id := string(server.ID)
+		if _, ok := known[id]; ok {
 			continue
 		}
 
 		member := serf.Member{
-			Tags: metadata.AgentTags(idStr),
+			Tags: metadata.Agent{ID: id}.ToTags(),
 		}
 		if err := a.handleReapMember(member); err != nil {
 			return err
@@ -213,7 +213,7 @@ func (a *Agent) reconcileMember(m serf.Member) {
 	case serf.StatusFailed:
 		err = a.handleFailedMember(m)
 
-	case StatusReap:
+	case statusReap:
 		err = a.handleReapMember(m)
 
 	case serf.StatusLeft:

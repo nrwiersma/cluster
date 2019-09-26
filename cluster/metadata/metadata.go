@@ -28,6 +28,7 @@ func (a Agent) ToTags() map[string]string {
 	tags := map[string]string{
 		"cluster":   clusterName,
 		"id":        a.ID,
+		"name":      a.Name,
 		"serf_addr": a.SerfAddr,
 		"rpc_addr":  a.RPCAddr,
 	}
@@ -71,15 +72,7 @@ func IsAgent(m serf.Member) (*Agent, bool) {
 		Expect:    expect,
 		NonVoter:  nonVoter,
 		Status:    m.Status,
-		SerfAddr:  m.Tags["serf_lan_addr"],
+		SerfAddr:  m.Tags["serf_addr"],
 		RPCAddr:   m.Tags["rpc_addr"],
 	}, true
-}
-
-// AgentTags is used to create tags from a raft server.
-func AgentTags(id string) map[string]string {
-	return map[string]string{
-		"cluster": clusterName,
-		"id":      id,
-	}
 }
