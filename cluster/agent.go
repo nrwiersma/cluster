@@ -120,7 +120,7 @@ func (a *Agent) Leave() error {
 
 	isLeader := a.isLeader()
 	if isLeader && numPeers > 1 {
-		future := a.raft.RemoveServer(raft.ServerID(fmt.Sprintf("%d", a.config.ID)), 0, 0)
+		future := a.raft.RemoveServer(raft.ServerID(a.config.ID), 0, 0)
 		if err := future.Error(); err != nil {
 			a.log.Error("agent: error removing ourselves as raft peer", "error", err)
 		}

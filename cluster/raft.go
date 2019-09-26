@@ -19,7 +19,7 @@ const (
 )
 
 func (a *Agent) setupRaft() error {
-	a.config.RaftConfig.LocalID = raft.ServerID(fmt.Sprintf("%d", a.config.ID))
+	a.config.RaftConfig.LocalID = raft.ServerID(a.config.ID)
 	a.config.RaftConfig.StartAsLeader = a.config.StartAsLeader // This is only for testing
 	a.config.RaftConfig.NotifyCh = a.raftNotifyCh
 	a.config.RaftConfig.Logger = log.NewHCLBridge(a.config.Logger, "raft: ")
