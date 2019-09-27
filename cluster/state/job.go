@@ -1,4 +1,4 @@
-package db
+package state
 
 // JobState is the state of a job.
 type JobState int8

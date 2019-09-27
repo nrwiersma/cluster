@@ -7,8 +7,8 @@ import (
 	"io/ioutil"
 
 	"github.com/hashicorp/raft"
-	"github.com/nrwiersma/cluster/cluster/db"
 	"github.com/nrwiersma/cluster/cluster/rpc"
+	"github.com/nrwiersma/cluster/cluster/state"
 	"github.com/pkg/errors"
 )
 
@@ -17,20 +17,20 @@ type handler func(buf []byte, index uint64) interface{}
 // FSM is a finite state machine used by Raft to
 // provide strong consistency.
 type FSM struct {
-	db *db.DB
+	store *state.Store
 
 	handlers map[rpc.MessageType]handler
 }
 
 // New returns an FSM for the given agent id.
 func New() (*FSM, error) {
-	db, err := db.New()
+	store, err := state.New()
 	if err != nil {
 		return nil, err
 	}
 
 	fsm := &FSM{
-		db: db,
+		store: store,
 	}
 
 	fsm.handlers = map[rpc.MessageType]handler{
@@ -41,9 +41,9 @@ func New() (*FSM, error) {
 	return fsm, nil
 }
 
-// DB returns the current state database.
-func (f *FSM) DB() *db.DB {
-	return f.db
+// Store returns the current state store.
+func (f *FSM) Store() *state.Store {
+	return f.store
 }
 
 // Apply is invoked once a log has been committed.
@@ -64,6 +64,7 @@ func (f *FSM) Apply(l *raft.Log) interface{} {
 func (f *FSM) Snapshot() (raft.FSMSnapshot, error) {
 	rc := ioutil.NopCloser(bytes.NewReader([]byte("snapshot")))
 
+	// TODO: Handle this
 	fmt.Println("FSM SNAPSHOT")
 
 	return &fsmSnapshot{b: rc}, nil
@@ -76,6 +77,7 @@ func (f *FSM) Restore(rc io.ReadCloser) error {
 		return errors.Wrap(err, "fsm: error reading snapshot")
 	}
 
+	// TODO: Handle this
 	fmt.Printf("FSM RESTORE: %s\n", string(b))
 
 	return nil

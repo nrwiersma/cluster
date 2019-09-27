@@ -4,7 +4,7 @@ import (
 	"bytes"
 
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/nrwiersma/cluster/cluster/db"
+	"github.com/nrwiersma/cluster/cluster/state"
 )
 
 // MessageType is an RPC message type.
@@ -18,12 +18,12 @@ const (
 
 // RegisterNode is used to register a node.
 type RegisterNode struct {
-	Node db.Node
+	Node state.Node
 }
 
 // DeregisterNode is used to deregister a node.
 type DeregisterNode struct {
-	Node db.Node
+	Node state.Node
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of RPC objects.

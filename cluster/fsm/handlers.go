@@ -12,7 +12,7 @@ func (f *FSM) handleRegisterNode(buf []byte, idx uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := f.db.EnsureNode(idx, &req.Node); err != nil {
+	if err := f.store.EnsureNode(idx, &req.Node); err != nil {
 		return err
 	}
 
@@ -25,7 +25,7 @@ func (f *FSM) handleDeregisterNode(buf []byte, idx uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := f.db.DeleteNode(idx, req.Node.ID); err != nil {
+	if err := f.store.DeleteNode(idx, req.Node.ID); err != nil {
 		return err
 	}
 

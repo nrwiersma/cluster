@@ -15,9 +15,9 @@ import (
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
-	"github.com/nrwiersma/cluster/cluster/db"
 	"github.com/nrwiersma/cluster/cluster/fsm"
 	"github.com/nrwiersma/cluster/cluster/rpc"
+	"github.com/nrwiersma/cluster/cluster/state"
 	"github.com/pkg/errors"
 	"github.com/segmentio/ksuid"
 )
@@ -112,8 +112,8 @@ func NewAgent(cfg *Config) (*Agent, error) {
 // the old database abandoned. If a reference to the
 // database is kept, the AbandonCh should be watched
 // and the new database fetched.
-func (a *Agent) DB() *db.DB {
-	return a.fsm.DB()
+func (a *Agent) Store() *state.Store {
+	return a.fsm.Store()
 }
 
 // IsLeader indicates if the agent is the leader of the cluster.

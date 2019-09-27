@@ -5,24 +5,24 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/nrwiersma/cluster/cluster/db"
+	"github.com/nrwiersma/cluster/cluster/state"
 )
 
-// DBProvider represents an object that can provide a database.
-type DBProvider interface {
-	DB() *db.DB
+// StoreProvider represents an object that can provide a state store.
+type StoreProvider interface {
+	Store() *state.Store
 }
 
 // DB exposes the cluster database in a consistent way.
 type DB struct {
-	*db.DB
+	*state.Store
 
-	prov DBProvider
+	prov StoreProvider
 	stop chan struct{}
 }
 
 // NewDB returns a database.
-func NewDB(prov DBProvider) (*DB, error) {
+func NewDB(prov StoreProvider) (*DB, error) {
 	if prov == nil {
 		return nil, errors.New("db: p cannot be nil")
 	}
@@ -32,26 +32,28 @@ func NewDB(prov DBProvider) (*DB, error) {
 		stop: make(chan struct{}),
 	}
 
-	d.setupDB()
+	d.swapStore()
+	go func() {
+		for {
+			abandon := d.Store.AbandonCh()
+			select {
+			case <-abandon:
+				// Once the store has been abandoned, get the latest store
+				d.swapStore()
+
+			case <-d.stop:
+				return
+			}
+		}
+	}()
 
 	return d, nil
 }
 
-func (d *DB) setupDB() {
-	// Atomically swap the dbs. No locks, not mess, no fuss.
-	dbPtr := (*unsafe.Pointer)(unsafe.Pointer(&d.DB))
-	atomic.StorePointer(dbPtr, unsafe.Pointer(d.prov.DB()))
-
-	go func() {
-		abandon := d.DB.AbandonCh()
-		select {
-		case <-abandon:
-			// Once the DB has been abandoned, get the latest db
-			d.setupDB()
-
-		case <-d.stop:
-		}
-	}()
+// swapStore atomically swaps the state stores without locking.
+func (d *DB) swapStore() {
+	storePtr := (*unsafe.Pointer)(unsafe.Pointer(&d.Store))
+	atomic.StorePointer(storePtr, unsafe.Pointer(d.prov.Store()))
 }
 
 // Close closes the database.

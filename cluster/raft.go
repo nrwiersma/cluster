@@ -9,10 +9,10 @@ import (
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
-	"github.com/nrwiersma/cluster/cluster/db"
 	"github.com/nrwiersma/cluster/cluster/fsm"
 	"github.com/nrwiersma/cluster/cluster/metadata"
 	"github.com/nrwiersma/cluster/cluster/rpc"
+	"github.com/nrwiersma/cluster/cluster/state"
 	"github.com/nrwiersma/cluster/pkg/log"
 )
 
@@ -249,9 +249,9 @@ func (a *Agent) handleAliveMember(m serf.Member) error {
 	a.log.Info("leader: member joined, marking health alive", "member", m.Name)
 
 	req := rpc.RegisterNode{
-		Node: db.Node{
+		Node: state.Node{
 			ID:     agent.ID,
-			Health: db.HealthPassing,
+			Health: state.HealthPassing,
 			Meta: map[string]string{
 				"name":      agent.Name,
 				"serf_addr": agent.SerfAddr,
@@ -272,9 +272,9 @@ func (a *Agent) handleFailedMember(m serf.Member) error {
 	a.log.Info("leader: member failed, marking health critical", "member", m.Name)
 
 	req := rpc.RegisterNode{
-		Node: db.Node{
+		Node: state.Node{
 			ID:     agent.ID,
-			Health: db.HealthCritical,
+			Health: state.HealthCritical,
 			Meta: map[string]string{
 				"name":      agent.Name,
 				"serf_addr": agent.SerfAddr,
@@ -313,7 +313,7 @@ func (a *Agent) handleDeregisterMember(reason string, member serf.Member) error 
 	}
 
 	req := rpc.DeregisterNode{
-		Node: db.Node{ID: agent.ID},
+		Node: state.Node{ID: agent.ID},
 	}
 	_, err := a.raftApply(rpc.DeregisterNodeType, &req)
 	return err

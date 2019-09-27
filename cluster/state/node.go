@@ -1,4 +1,4 @@
-package db
+package state
 
 import (
 	"fmt"
@@ -39,7 +39,7 @@ func nodesTableSchema() *memdb.TableSchema {
 }
 
 // Node returns a node with the given id or nil.
-func (d *DB) Node(id string) (*Node, error) {
+func (d *Store) Node(id string) (*Node, error) {
 	tx := d.db.Txn(false)
 	defer tx.Abort()
 
@@ -54,7 +54,7 @@ func (d *DB) Node(id string) (*Node, error) {
 }
 
 // Nodes returns all the nodes.
-func (d *DB) Nodes() ([]*Node, error) {
+func (d *Store) Nodes() ([]*Node, error) {
 	tx := d.db.Txn(false)
 	defer tx.Abort()
 
@@ -70,7 +70,7 @@ func (d *DB) Nodes() ([]*Node, error) {
 }
 
 // EnsureNode upserts a node in the database.
-func (d *DB) EnsureNode(idx uint64, node *Node) error {
+func (d *Store) EnsureNode(idx uint64, node *Node) error {
 	tx := d.db.Txn(true)
 	defer tx.Abort()
 
@@ -83,7 +83,7 @@ func (d *DB) EnsureNode(idx uint64, node *Node) error {
 }
 
 // DeleteNode deletes a node from the database with the given id.
-func (d *DB) DeleteNode(idx uint64, id string) error {
+func (d *Store) DeleteNode(idx uint64, id string) error {
 	tx := d.db.Txn(true)
 	defer tx.Abort()
 
