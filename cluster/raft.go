@@ -18,14 +18,24 @@ const (
 	barrierWriteTimeout = 2 * time.Minute
 )
 
-func (a *Agent) setupRaft() error {
+func (a *Agent) setupRaft() (err error) {
+	// Protect against unclean exit
+	defer func() {
+		if a.raft == nil && a.raftStore != nil {
+			_ = a.raftStore.Close()
+		}
+	}()
+
 	a.config.RaftConfig.LocalID = raft.ServerID(a.config.ID)
 	a.config.RaftConfig.StartAsLeader = a.config.StartAsLeader // This is only for testing
 	a.config.RaftConfig.NotifyCh = a.raftNotifyCh
 	a.config.RaftConfig.Logger = log.NewHCLBridge(a.config.Logger, "raft: ")
 
 	// Create the FSM
-	a.fsm = fsm.New(a.config.ID)
+	a.fsm, err = fsm.New()
+	if err != nil {
+		return err
+	}
 
 	// Create the raft transport
 	trans, err := raft.NewTCPTransportWithLogger(a.config.RPCAddr,

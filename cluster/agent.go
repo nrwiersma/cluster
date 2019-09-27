@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
+	"github.com/nrwiersma/cluster/cluster/db"
 	"github.com/nrwiersma/cluster/cluster/fsm"
 	"github.com/pkg/errors"
 	"github.com/segmentio/ksuid"
@@ -32,10 +33,11 @@ type Agent struct {
 	config *Config
 	log    log.Logger
 
+	fsm *fsm.FSM
+
 	raft          *raft.Raft
 	raftStore     *raftboltdb.BoltStore
 	raftTransport *raft.NetworkTransport
-	fsm           *fsm.FSM
 	raftNotifyCh  chan bool
 
 	serf        *serf.Serf
@@ -101,6 +103,16 @@ func New(cfg *Config) (*Agent, error) {
 	go n.monitorLeadership()
 
 	return n, nil
+}
+
+// DB returns the current state database.
+//
+// During a restore a new database will be created and
+// the old database abandoned. If a reference to the
+// database is kept, the AbandonCh should be watched
+// and the new database fetched.
+func (a *Agent) DB() *db.DB {
+	return a.fsm.DB()
 }
 
 // Members returns the members in the serf cluster.

@@ -6,6 +6,8 @@ require (
 	github.com/hamba/cmd v1.4.1
 	github.com/hamba/pkg v1.3.0
 	github.com/hashicorp/go-hclog v0.9.1
+	github.com/hashicorp/go-memdb v1.0.3
+	github.com/hashicorp/go-msgpack v0.5.5
 	github.com/hashicorp/go-sockaddr v1.0.0
 	github.com/hashicorp/memberlist v0.1.5
 	github.com/hashicorp/raft v1.1.1
