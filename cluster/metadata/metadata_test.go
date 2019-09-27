@@ -161,7 +161,7 @@ func TestIsAgent(t *testing.T) {
 				},
 				Status: serf.StatusAlive,
 			},
-			want: nil,
+			want:   nil,
 			wantOk: false,
 		},
 		{
@@ -177,7 +177,7 @@ func TestIsAgent(t *testing.T) {
 				},
 				Status: serf.StatusAlive,
 			},
-			want: nil,
+			want:   nil,
 			wantOk: false,
 		},
 	}

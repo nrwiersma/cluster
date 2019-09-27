@@ -24,10 +24,10 @@ func runAgent(c *cli.Context) error {
 		}
 	}
 
-	//app, err := newApplication(ctx)
-	//if err != nil {
-	//	log.Fatal(ctx, err.Error())
-	//}
+	_, err = newApplication(ctx, agent)
+	if err != nil {
+		return err
+	}
 
 	<-cmd.WaitForSignals()
 

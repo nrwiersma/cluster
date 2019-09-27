@@ -11,15 +11,28 @@ import (
 
 // Application =============================
 
-func newApplication(c *cmd.Context) (*cluster.Application, error) {
-	app := cluster.NewApplication(
-		c.Logger(),
-		c.Statter(),
-	)
+func newApplication(c *cmd.Context, agent *clus.Agent) (*cluster.Application, error) {
+	db, err := newDB(agent)
+	if err != nil {
+		return nil, err
+	}
+
+	app := cluster.NewApplication(cluster.Config{
+		Agent:   agent,
+		DB:      db,
+		Logger:  c.Logger(),
+		Statter: c.Statter(),
+	})
 
 	// Setup your application here
 
 	return app, nil
+}
+
+// Database ================================
+
+func newDB(agent *clus.Agent) (*cluster.DB, error) {
+	return cluster.NewDB(agent)
 }
 
 // Agent ===================================
@@ -52,5 +65,5 @@ func newAgent(c *cmd.Context) (*clus.Agent, error) {
 		return nil, err
 	}
 
-	return clus.New(cfg)
+	return clus.NewAgent(cfg)
 }

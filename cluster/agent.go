@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/serf/serf"
 	"github.com/nrwiersma/cluster/cluster/db"
 	"github.com/nrwiersma/cluster/cluster/fsm"
+	"github.com/nrwiersma/cluster/cluster/rpc"
 	"github.com/pkg/errors"
 	"github.com/segmentio/ksuid"
 )
@@ -49,8 +50,8 @@ type Agent struct {
 	shutdown   bool
 }
 
-// New returns a new agent with the given configuration.
-func New(cfg *Config) (*Agent, error) {
+// NewAgent returns a new agent with the given configuration.
+func NewAgent(cfg *Config) (*Agent, error) {
 	if cfg.EncryptKey != "" {
 		key, err := base64.StdEncoding.DecodeString(cfg.EncryptKey)
 		if err != nil {
@@ -115,6 +116,11 @@ func (a *Agent) DB() *db.DB {
 	return a.fsm.DB()
 }
 
+// IsLeader indicates if the agent is the leader of the cluster.
+func (a *Agent) IsLeader() bool {
+	return a.raft.State() == raft.Leader
+}
+
 // Members returns the members in the serf cluster.
 func (a *Agent) Members() []serf.Member {
 	return a.serf.Members()
@@ -135,7 +141,7 @@ func (a *Agent) Leave() error {
 		return errors.Wrap(err, "agent: check raft peers error")
 	}
 
-	isLeader := a.isLeader()
+	isLeader := a.IsLeader()
 	if isLeader && numPeers > 1 {
 		future := a.raft.RemoveServer(raft.ServerID(a.config.ID), 0, 0)
 		if err := future.Error(); err != nil {
@@ -154,6 +160,15 @@ func (a *Agent) Leave() error {
 	// TODO: Other stuff here
 
 	return nil
+}
+
+// Healthy determines if the agent is healthy.
+func (a *Agent) Healthy() bool {
+	if !a.IsLeader() && time.Since(a.raft.LastContact()) > time.Minute {
+		return false
+	}
+
+	return true
 }
 
 // Close closes the agent.
@@ -223,8 +238,17 @@ func (a *Agent) setupAgentID() error {
 	return nil
 }
 
-func (a *Agent) isLeader() bool {
-	return a.raft.State() == raft.Leader
+func (a *Agent) raftApply(t rpc.MessageType, msg interface{}) (interface{}, error) {
+	buf, err := rpc.Encode(t, msg)
+	if err != nil {
+		return nil, fmt.Errorf("agent: failed to encode request: %v", err)
+	}
+
+	future := a.raft.Apply(buf, 30*time.Second)
+	if err := future.Error(); err != nil {
+		return nil, err
+	}
+	return future.Response(), nil
 }
 
 func (a *Agent) numPeers() (int, error) {

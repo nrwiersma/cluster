@@ -88,7 +88,7 @@ func (a *Agent) nodeFailed(e serf.MemberEvent) {
 }
 
 func (a *Agent) localMemberEvent(e serf.MemberEvent) {
-	if !a.isLeader() {
+	if !a.IsLeader() {
 		return
 	}
 

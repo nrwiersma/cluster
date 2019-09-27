@@ -15,7 +15,9 @@ type DB struct {
 // New returns a cluster database.
 func New() (*DB, error) {
 	dbSchema := &memdb.DBSchema{
-		Tables: make(map[string]*memdb.TableSchema),
+		Tables: map[string]*memdb.TableSchema{
+			"nodes": nodesTableSchema(),
+		},
 	}
 
 	db, err := memdb.NewMemDB(dbSchema)
