@@ -11,12 +11,7 @@ import (
 
 // Application =============================
 
-func newApplication(c *cmd.Context, agent *clus.Agent) (*cluster.Application, error) {
-	db, err := newDB(agent)
-	if err != nil {
-		return nil, err
-	}
-
+func newApplication(c *cmd.Context, agent *clus.Agent, db *cluster.DB) (*cluster.Application, error) {
 	app := cluster.NewApplication(cluster.Config{
 		Agent:   agent,
 		DB:      db,
