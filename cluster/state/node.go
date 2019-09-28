@@ -69,7 +69,7 @@ func (d *Store) Nodes() ([]*Node, error) {
 	return nodes, nil
 }
 
-// EnsureNode upserts a node in the database.
+// EnsureNode inserts a node in the database.
 func (d *Store) EnsureNode(idx uint64, node *Node) error {
 	tx := d.db.Txn(true)
 	defer tx.Abort()
@@ -98,5 +98,7 @@ func (d *Store) DeleteNode(idx uint64, id string) error {
 	if err := tx.Delete("nodes", node); err != nil {
 		return err
 	}
+
+	tx.Commit()
 	return nil
 }

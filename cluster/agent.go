@@ -157,8 +157,32 @@ func (a *Agent) Leave() error {
 
 	time.Sleep(a.config.LeaveDrainTime)
 
-	// TODO: Other stuff here
+	if isLeader {
+		return nil
+	}
 
+	left := false
+	limit := time.Now().Add(5 * time.Second)
+	for !left && time.Now().Before(limit) {
+		// Sleep a while before we check
+		time.Sleep(50 * time.Millisecond)
+
+		// Get the latest configuration
+		future := a.raft.GetConfiguration()
+		if err := future.Error(); err != nil {
+			a.log.Error("agent: get raft configuration error", "error", err)
+			break
+		}
+
+		// See if we are no longer included
+		left = true
+		for _, server := range future.Configuration().Servers {
+			if server.Address == raft.ServerAddress(a.config.RPCAddr) {
+				left = false
+				break
+			}
+		}
+	}
 	return nil
 }
 
