@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"net"
 	"os"
 	"time"
 
@@ -10,11 +11,16 @@ import (
 )
 
 const (
-	// DefaultRPCAddr is the default RPC binding address.
-	DefaultRPCAddr = ":8300"
+	// DefaultRPCPort is the default RPC listening port.
+	DefaultRPCPort = 8300
 
 	// DefaultSerfPort is the default Serf listening port.
 	DefaultSerfPort = 8301
+)
+
+var (
+	// DefaultRPCAddr is the default RPC binding address.
+	DefaultRPCAddr = &net.TCPAddr{IP: net.IP{}, Port: DefaultRPCPort}
 )
 
 // Config holds the configuration for a Agent.
@@ -39,8 +45,11 @@ type Config struct {
 	// RaftConfig is the configuration used for Raft.
 	RaftConfig *raft.Config
 
+	// AdvertiseAddr is the address advertised for RPC communication.
+	RPCAdvertise *net.TCPAddr
+
 	// RPCAddr is the address used for RPC communication.
-	RPCAddr string
+	RPCAddr *net.TCPAddr
 
 	// Bootstrap is used to bring up the first cluster node.
 	// This is required to create a single node cluster.

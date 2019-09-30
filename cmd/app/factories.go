@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 
@@ -36,7 +37,6 @@ func newAgent(c *cmd.Context) (*clus.Agent, error) {
 	cfg := clus.NewConfig()
 	cfg.DataDir = c.String(flagDataDir)
 	cfg.EncryptKey = c.String(flagEncryptKey)
-	cfg.RPCAddr = c.String(flagRPCAddr)
 	cfg.Bootstrap = c.Bool(flagBootstrap)
 	cfg.BootstrapExpect = c.Int(flagBootstrapExpect)
 	cfg.Logger = c.Logger()
@@ -47,6 +47,22 @@ func newAgent(c *cmd.Context) (*clus.Agent, error) {
 
 	if name := c.String(flagName); name != "" {
 		cfg.Name = name
+	}
+
+	if advertiseAddr := c.String(flagRPCAdvertise); advertiseAddr != "" {
+		addr, err := net.ResolveTCPAddr("tcp", advertiseAddr)
+		if err != nil {
+			return nil, fmt.Errorf("agent: invalid advertise address: %w", err)
+		}
+		cfg.RPCAdvertise = addr
+	}
+
+	if rpcAddr := c.String(flagRPCAddr); rpcAddr != "" {
+		addr, err := net.ResolveTCPAddr("tcp", rpcAddr)
+		if err != nil {
+			return nil, fmt.Errorf("agent: invalid rpc address: %w", err)
+		}
+		cfg.RPCAddr = addr
 	}
 
 	// Setup the serf addr

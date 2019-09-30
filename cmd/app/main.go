@@ -16,6 +16,7 @@ const (
 	flagDataDir         = "data-dir"
 	flagSerfAddr        = "serf-addr"
 	flagEncryptKey      = "encrypt"
+	flagRPCAdvertise    = "advertise-addr"
 	flagRPCAddr         = "rpc-addr"
 	flagBootstrap       = "bootstrap"
 	flagBootstrapExpect = "bootstrap-expect"
@@ -46,6 +47,17 @@ var commands = []*cli.Command{
 				EnvVars: []string{"AGENT_DATA_DIR"},
 			},
 			&cli.StringFlag{
+				Name:    flagRPCAdvertise,
+				Usage:   "The address for the RPC to advertise on.",
+				EnvVars: []string{"AGENT_ADVERTISE_ADDR"},
+			},
+			&cli.StringFlag{
+				Name:    flagRPCAddr,
+				Usage:   "The address for the RPC to bind on.",
+				Value:   ":8300",
+				EnvVars: []string{"AGENT_RPC_ADDR"},
+			},
+			&cli.StringFlag{
 				Name:    flagSerfAddr,
 				Usage:   "The address for Serf to bind on.",
 				Value:   "0.0.0.0:8301",
@@ -55,12 +67,6 @@ var commands = []*cli.Command{
 				Name:    flagEncryptKey,
 				Usage:   "The encryption key to secure Serf.",
 				EnvVars: []string{"AGENT_ENCRYPTION_KEY"},
-			},
-			&cli.StringFlag{
-				Name:    flagRPCAddr,
-				Usage:   "The address for the RPC to bind and advertise on.",
-				Value:   "127.0.0.1:8300",
-				EnvVars: []string{"AGENT_RPC_ADDR"},
 			},
 			&cli.BoolFlag{
 				Name:    flagBootstrap,

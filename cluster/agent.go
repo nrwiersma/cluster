@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,8 +37,11 @@ type Agent struct {
 
 	fsm *fsm.FSM
 
+	ln net.Listener
+
 	raft          *raft.Raft
 	raftStore     *raftboltdb.BoltStore
+	raftLayer     *RaftLayer
 	raftTransport *raft.NetworkTransport
 	raftNotifyCh  chan bool
 
@@ -75,7 +79,7 @@ func NewAgent(cfg *Config) (*Agent, error) {
 		logger = log.Null
 	}
 
-	n := &Agent{
+	agent := &Agent{
 		config:       cfg,
 		raftNotifyCh: make(chan bool, 1),
 		eventCh:      make(chan serf.Event, 256),
@@ -84,26 +88,32 @@ func NewAgent(cfg *Config) (*Agent, error) {
 		log:          logger,
 	}
 
-	if err := n.setupAgentID(); err != nil {
+	if err := agent.setupAgentID(); err != nil {
 		return nil, errors.Wrap(err, "agent: error setting up agent id")
 	}
 
-	if err := n.setupRaft(); err != nil {
-		n.Close()
+	if err := agent.setupRPC(); err != nil {
+		return nil, errors.Wrap(err, "agent: error setting up RPC")
+	}
+
+	if err := agent.setupRaft(); err != nil {
+		agent.Close()
 		return nil, fmt.Errorf("agent: %v", err)
 	}
 
 	var err error
-	n.serf, err = n.setupSerf(cfg.SerfConfig, n.eventCh, serfSnapshot)
+	agent.serf, err = agent.setupSerf(cfg.SerfConfig, agent.eventCh, serfSnapshot)
 	if err != nil {
 		return nil, err
 	}
 
-	go n.eventHandler()
+	go agent.eventHandler()
 
-	go n.monitorLeadership()
+	go agent.monitorLeadership()
 
-	return n, nil
+	go agent.listen(agent.ln)
+
+	return agent, nil
 }
 
 // Store returns the current state store.
@@ -176,8 +186,9 @@ func (a *Agent) Leave() error {
 
 		// See if we are no longer included
 		left = true
+		rpcAddr := a.config.RPCAddr.String()
 		for _, server := range future.Configuration().Servers {
-			if server.Address == raft.ServerAddress(a.config.RPCAddr) {
+			if server.Address == raft.ServerAddress(rpcAddr) {
 				left = false
 				break
 			}
@@ -221,9 +232,16 @@ func (a *Agent) Close() error {
 		if err := future.Error(); err != nil {
 			a.log.Error("agent: shutdown error", "error", err)
 		}
+		if a.raftLayer != nil {
+			_ = a.raftLayer.Close()
+		}
 		if a.raftStore != nil {
 			_ = a.raftStore.Close()
 		}
+	}
+
+	if a.ln != nil {
+		_ = a.ln.Close()
 	}
 
 	return nil

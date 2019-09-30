@@ -40,15 +40,12 @@ func (a *Agent) setupRaft() (err error) {
 	}
 
 	// Create the raft transport
-	trans, err := raft.NewTCPTransportWithLogger(a.config.RPCAddr,
-		nil,
+	trans := raft.NewNetworkTransportWithLogger(
+		a.raftLayer,
 		3,
 		10*time.Second,
 		log.NewBridge(a.config.Logger, log.Debug, "raft transport: "),
 	)
-	if err != nil {
-		return err
-	}
 	a.raftTransport = trans
 
 	path := filepath.Join(a.config.DataDir, raftState)

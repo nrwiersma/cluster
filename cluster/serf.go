@@ -22,7 +22,7 @@ func (a *Agent) setupSerf(config *serf.Config, ch chan serf.Event, path string) 
 		Expect:    a.config.BootstrapExpect,
 		NonVoter:  a.config.NonVoter,
 		SerfAddr:  fmt.Sprintf("%s:%d", a.config.SerfConfig.MemberlistConfig.BindAddr, a.config.SerfConfig.MemberlistConfig.BindPort),
-		RPCAddr:   a.config.RPCAddr,
+		RPCAddr:   a.config.RPCAdvertise.String(),
 	}.ToTags()
 	config.Logger = log.NewBridge(a.config.Logger, log.Debug, "serf: ")
 	config.MemberlistConfig.Logger = log.NewBridge(a.config.Logger, log.Debug, "memberlist: ")
