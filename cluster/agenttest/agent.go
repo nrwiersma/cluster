@@ -17,7 +17,7 @@ var (
 	nodeNumber int32
 )
 
-// NewTestAgent creates a test agent.
+// NewAgent creates a test agent.
 func NewAgent(t *testing.T, cfgFn func(cfg *cluster.Config)) (*cluster.Agent, *cluster.Config, string) {
 	ports := dynaport.Get(2)
 	id := atomic.AddInt32(&nodeNumber, 1)
@@ -61,15 +61,16 @@ func NewAgent(t *testing.T, cfgFn func(cfg *cluster.Config)) (*cluster.Agent, *c
 	return agent, config, tmpDir
 }
 
+// CloseAndRemove closes an agent and removes its temp directory.
 func CloseAndRemove(t *testing.T, agent *cluster.Agent, tmpDir string) {
-	_ = os.RemoveAll(tmpDir)
+	defer os.RemoveAll(tmpDir)
 
 	if err := agent.Close(); err != nil {
 		t.Error(fmt.Errorf("error closing agent: %w", err))
 	}
 }
 
-// TestJoin joins test agents.
+// Join joins test agents.
 func Join(t *testing.T, cfg *cluster.Config, agents ...*cluster.Agent) {
 	addr := fmt.Sprintf("127.0.0.1:%d", cfg.SerfConfig.MemberlistConfig.BindPort)
 	for _, a := range agents {

@@ -54,12 +54,13 @@ func (b *Bridge) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// Bridge is a log bridge to a hcl logger.
+// HCLBridge is a log bridge to a hcl logger.
 type HCLBridge struct {
 	log    log.Logger
 	prefix string
 }
 
+// NewHCLBridge returns an hcl logger bridge.
 func NewHCLBridge(l log.Logger, prefix string) hclog.Logger {
 	if l == nil {
 		l = log.Null

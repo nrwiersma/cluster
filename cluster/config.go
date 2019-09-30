@@ -10,7 +10,10 @@ import (
 )
 
 const (
-	DefaultRPCAddr  = ":8300"
+	// DefaultRPCAddr is the default RPC binding address.
+	DefaultRPCAddr = ":8300"
+
+	// DefaultSerfPort is the default Serf listening port.
 	DefaultSerfPort = 8301
 )
 

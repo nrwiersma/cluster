@@ -54,16 +54,19 @@ func (d *Store) Node(id string) (*Node, error) {
 }
 
 // Nodes returns all the nodes.
-func (d *Store) Nodes() ([]*Node, error) {
+func (d *Store) Nodes(filters ...FilterFunc) ([]*Node, error) {
 	tx := d.db.Txn(false)
 	defer tx.Abort()
 
-	it, err := tx.Get("nodes", "id")
+	iter, err := tx.Get("nodes", "id")
 	if err != nil {
 		return nil, fmt.Errorf("node lookup failed: %s", err)
 	}
+
+	iter = applyFilters(iter, filters)
+
 	var nodes []*Node
-	for next := it.Next(); next != nil; next = it.Next() {
+	for next := iter.Next(); next != nil; next = iter.Next() {
 		nodes = append(nodes, next.(*Node))
 	}
 	return nodes, nil

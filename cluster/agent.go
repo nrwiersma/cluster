@@ -106,12 +106,12 @@ func NewAgent(cfg *Config) (*Agent, error) {
 	return n, nil
 }
 
-// DB returns the current state database.
+// Store returns the current state store.
 //
-// During a restore a new database will be created and
-// the old database abandoned. If a reference to the
-// database is kept, the AbandonCh should be watched
-// and the new database fetched.
+// During a restore a new store will be created and
+// the old store abandoned. If a reference to the
+// store is kept, the AbandonCh should be watched
+// and the new store fetched when it is closed.
 func (a *Agent) Store() *state.Store {
 	return a.fsm.Store()
 }

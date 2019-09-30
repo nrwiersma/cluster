@@ -70,7 +70,7 @@ func (f *FSM) Snapshot() (raft.FSMSnapshot, error) {
 	return &fsmSnapshot{b: rc}, nil
 }
 
-// Restore retores the FSM to a previous state.
+// Restore restores the FSM to a previous state.
 func (f *FSM) Restore(rc io.ReadCloser) error {
 	b, err := ioutil.ReadAll(rc)
 	if err != nil {

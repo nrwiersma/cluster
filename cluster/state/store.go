@@ -42,3 +42,19 @@ func (d *Store) Abandon() {
 func (d *Store) AbandonCh() <-chan struct{} {
 	return d.abandonCh
 }
+
+// FilterFunc is a function predicate for filtering a store items.
+type FilterFunc func(interface{}) bool
+
+// applyFilters applies a slice of filters to an iterator.
+func applyFilters(iter memdb.ResultIterator, filters []FilterFunc) memdb.ResultIterator {
+	if len(filters) == 0 {
+		return iter
+	}
+
+	for _, filter := range filters {
+		iter = memdb.NewFilterIterator(iter, memdb.FilterFunc(filter))
+	}
+
+	return iter
+}
