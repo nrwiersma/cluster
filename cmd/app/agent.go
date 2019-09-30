@@ -30,10 +30,11 @@ func runAgent(c *cli.Context) error {
 		}
 	}
 
-	_, err = newApplication(ctx, agent, db)
+	app, err := newApplication(ctx, agent, db)
 	if err != nil {
 		return err
 	}
+	defer app.Close()
 
 	<-cmd.WaitForSignals()
 

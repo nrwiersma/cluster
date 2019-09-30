@@ -53,14 +53,15 @@ func (d *Store) Node(id string) (*Node, error) {
 	return nil, nil
 }
 
-// Nodes returns all the nodes.
-func (d *Store) Nodes(filters ...FilterFunc) ([]*Node, error) {
+// Nodes returns all the nodes as well as a watch channel that will be closed
+// when the nodes change.
+func (d *Store) Nodes(filters ...FilterFunc) ([]*Node, <-chan struct{}, error) {
 	tx := d.db.Txn(false)
 	defer tx.Abort()
 
 	iter, err := tx.Get("nodes", "id")
 	if err != nil {
-		return nil, fmt.Errorf("node lookup failed: %s", err)
+		return nil, nil, fmt.Errorf("node lookup failed: %s", err)
 	}
 
 	iter = applyFilters(iter, filters)
@@ -69,7 +70,7 @@ func (d *Store) Nodes(filters ...FilterFunc) ([]*Node, error) {
 	for next := iter.Next(); next != nil; next = iter.Next() {
 		nodes = append(nodes, next.(*Node))
 	}
-	return nodes, nil
+	return nodes, iter.WatchCh(), nil
 }
 
 // EnsureNode inserts a node in the database.
