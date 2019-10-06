@@ -6,8 +6,8 @@ import (
 	"github.com/nrwiersma/cluster/cluster/rpc"
 )
 
-func (f *FSM) handleRegisterNode(buf []byte, idx uint64) interface{} {
-	var req rpc.RegisterNode
+func (f *FSM) handleRegisterNodeRequest(buf []byte, idx uint64) interface{} {
+	var req rpc.RegisterNodeRequest
 	if err := rpc.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
@@ -19,8 +19,8 @@ func (f *FSM) handleRegisterNode(buf []byte, idx uint64) interface{} {
 	return nil
 }
 
-func (f *FSM) handleDeregisterNode(buf []byte, idx uint64) interface{} {
-	var req rpc.DeregisterNode
+func (f *FSM) handleDeregisterNodeRequest(buf []byte, idx uint64) interface{} {
+	var req rpc.DeregisterNodeRequest
 	if err := rpc.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}

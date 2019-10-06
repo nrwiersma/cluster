@@ -48,6 +48,9 @@ type Agent struct {
 	serf        *serf.Serf
 	eventCh     chan serf.Event
 	reconcileCh chan serf.Member
+	agentLookup *agentLookup
+
+	leaveCh chan struct{}
 
 	shutdownMu sync.Mutex
 	shutdownCh chan struct{}
@@ -84,6 +87,8 @@ func NewAgent(cfg *Config) (*Agent, error) {
 		raftNotifyCh: make(chan bool, 1),
 		eventCh:      make(chan serf.Event, 256),
 		reconcileCh:  make(chan serf.Member, 32),
+		agentLookup:  newAgentLookup(),
+		leaveCh:      make(chan struct{}),
 		shutdownCh:   make(chan struct{}),
 		log:          logger,
 	}
@@ -131,9 +136,33 @@ func (a *Agent) IsLeader() bool {
 	return a.raft.State() == raft.Leader
 }
 
+// LocalMember is used to return the local node
+func (a *Agent) LocalMember() serf.Member {
+	return a.serf.LocalMember()
+}
+
 // Members returns the members in the serf cluster.
 func (a *Agent) Members() []serf.Member {
 	return a.serf.Members()
+}
+
+// Apply applies the message to the state store. If the agent is not
+// the leader, it will be forwarded to the leader.
+func (a *Agent) Apply(t rpc.MessageType, msg interface{}) (interface{}, error) {
+
+	// Using apply over an rpc is an arb decision in a vague use case.
+	// Should the use need more logic to apply state, or even logic that
+	// is stateless but still the agents responsibility, this should be
+	// replaced with an RPC call (to perhaps msgpack rpc over net/rpc).
+	// We would then have 2 rpc cases, the internal raft state rpc and the
+	// outward facing rpc. It is unclear if it would still be a good idea
+	// to expose the store then.
+
+	if ok, reply, err := a.forward(t, msg); ok {
+		return reply, err
+	}
+
+	return a.raftApply(t, msg)
 }
 
 // Join joins the cluster using the given Serf addresses.
@@ -164,6 +193,8 @@ func (a *Agent) Leave() error {
 			return errors.Wrap(err, "agent: error leaving cluster")
 		}
 	}
+
+	close(a.leaveCh)
 
 	time.Sleep(a.config.LeaveDrainTime)
 

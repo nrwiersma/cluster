@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hashicorp/consul/sdk/testutil/retry"
+	"github.com/hamba/testutils/retry"
 	"github.com/nrwiersma/cluster/cluster"
 	"github.com/nrwiersma/cluster/cluster/agenttest"
 	"github.com/nrwiersma/cluster/cluster/state"
@@ -42,22 +42,22 @@ func TestAgent_CanRegisterMembers(t *testing.T) {
 	agenttest.WaitForLeader(t, a1, a2)
 
 	store := a1.Store()
-	retry.Run(t, func(r *retry.R) {
+	retry.Run(t, func(t *retry.SubT) {
 		node, err := store.Node(cfg1.ID)
 		if err != nil {
-			r.Fatalf("err: %v", err)
+			t.Fatalf("err: %v", err)
 		}
 		if node == nil {
-			r.Fatal("node not registered")
+			t.Fatal("node not registered")
 		}
 	})
-	retry.Run(t, func(r *retry.R) {
+	retry.Run(t, func(t *retry.SubT) {
 		node, err := store.Node(cfg2.ID)
 		if err != nil {
-			r.Fatalf("err: %v", err)
+			t.Fatalf("err: %v", err)
 		}
 		if node == nil {
-			r.Fatal("node not registered")
+			t.Fatal("node not registered")
 		}
 	})
 }
@@ -82,16 +82,16 @@ func TestAgent_HandlesFailedMember(t *testing.T) {
 
 	store := a1.Store()
 
-	retry.Run(t, func(r *retry.R) {
+	retry.Run(t, func(t *retry.SubT) {
 		node, err := store.Node(cfg2.ID)
 		if err != nil {
-			r.Fatalf("err: %v", err)
+			t.Fatalf("err: %v", err)
 		}
 		if node == nil {
-			r.Fatal("node not registered")
+			t.Fatal("node not registered")
 		}
 		if node.Health == state.HealthCritical {
-			r.Fatal("node not critical")
+			t.Fatal("node not critical")
 		}
 	})
 }
@@ -116,13 +116,13 @@ func TestAgent_HandlesLeftMember(t *testing.T) {
 	store := a1.Store()
 
 	// Should be registered
-	retry.Run(t, func(r *retry.R) {
+	retry.Run(t, func(t *retry.SubT) {
 		node, err := store.Node(cfg2.ID)
 		if err != nil {
-			r.Fatalf("err: %v", err)
+			t.Fatalf("err: %v", err)
 		}
 		if node == nil {
-			r.Fatal("node isn't registered")
+			t.Fatal("node isn't registered")
 		}
 	})
 
@@ -130,13 +130,13 @@ func TestAgent_HandlesLeftMember(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should be deregistered
-	retry.Run(t, func(r *retry.R) {
+	retry.Run(t, func(t *retry.SubT) {
 		node, err := store.Node(cfg2.ID)
 		if err != nil {
-			r.Fatalf("err: %v", err)
+			t.Fatalf("err: %v", err)
 		}
 		if node != nil {
-			r.Fatal("node still registered")
+			t.Fatal("node still registered")
 		}
 	})
 }
@@ -183,13 +183,13 @@ func TestAgent_HandlesLeftLeader(t *testing.T) {
 	require.NotNil(t, leader2)
 
 	store := leader2.Store()
-	retry.Run(t, func(r *retry.R) {
+	retry.Run(t, func(t *retry.SubT) {
 		node, err := store.Node(leaderCfg.ID)
 		if err != nil {
-			r.Fatalf("err: %v", err)
+			t.Fatalf("err: %v", err)
 		}
 		if node != nil {
-			r.Fatal("leader should be deregistered")
+			t.Fatal("leader should be deregistered")
 		}
 	})
 }

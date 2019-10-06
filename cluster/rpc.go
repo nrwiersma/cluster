@@ -7,11 +7,15 @@ import (
 	"time"
 
 	"github.com/hashicorp/raft"
+	"github.com/nrwiersma/cluster/cluster/metadata"
+	"github.com/nrwiersma/cluster/cluster/rpc"
 )
 
-func (a *Agent) setupRPC() (err error) {
-	// TODO: Need some rpc server here
+// ErrRaftLayerClosed is returned when performing an action on a closed
+// RaftLayer.
+var ErrRaftLayerClosed = errors.New("RaftLayer closed")
 
+func (a *Agent) setupRPC() (err error) {
 	a.ln, err = net.ListenTCP("tcp", a.config.RPCAddr)
 	if err != nil {
 		return err
@@ -45,6 +49,48 @@ func (a *Agent) handleConn(conn net.Conn) {
 	_ = a.raftLayer.HandOff(conn)
 }
 
+var ErrNoLeader = errors.New("agent: no leader")
+
+func (a *Agent) forward(t rpc.MessageType, msg interface{}) (bool, interface{}, error) {
+	select {
+	case <-a.leaveCh:
+		return true, nil, ErrNoLeader
+	default:
+	}
+
+	// Check leadership
+	isLeader, leader := a.getLeader()
+	if isLeader {
+		return false, nil, nil
+	}
+	if leader == nil {
+		return true, nil, ErrNoLeader
+	}
+
+	//reply, err := a.connPool.Apply(leader.RPCAddr, t, msg)
+	//if err != nil {
+	//	// TODO: perhaps retry the request
+	//	return true, nil, err
+	//}
+	//return true, reply, err
+	return false, nil, nil
+}
+
+func (a *Agent) getLeader() (bool, *metadata.Agent) {
+	// Check if we are the leader
+	if a.IsLeader() {
+		return true, nil
+	}
+
+	// Get the leader
+	leader := a.raft.Leader()
+	if leader == "" {
+		return false, nil
+	}
+
+	return false, a.agentLookup.AgentByAddr(leader)
+}
+
 // RaftLayer allows a single listener to be used for
 // both Raft and a custom RPC layer.
 type RaftLayer struct {
@@ -70,7 +116,7 @@ func (l *RaftLayer) HandOff(conn net.Conn) error {
 	case l.connCh <- conn:
 		return nil
 	case <-l.closeCh:
-		return errors.New("RaftLayer closed")
+		return ErrRaftLayerClosed
 	}
 }
 
@@ -80,7 +126,7 @@ func (l *RaftLayer) Accept() (net.Conn, error) {
 	case conn := <-l.connCh:
 		return conn, nil
 	case <-l.closeCh:
-		return nil, errors.New("RaftLayer closed")
+		return nil, ErrRaftLayerClosed
 	}
 }
 

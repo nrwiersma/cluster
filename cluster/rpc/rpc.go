@@ -12,17 +12,17 @@ type MessageType int8
 
 // RPC message types.
 const (
-	RegisterNodeType MessageType = iota
-	DeregisterNodeType
+	RegisterNodeRequestType MessageType = iota
+	DeregisterNodeRequestType
 )
 
-// RegisterNode is used to register a node.
-type RegisterNode struct {
+// RegisterNodeRequest is used to register a node.
+type RegisterNodeRequest struct {
 	Node state.Node
 }
 
-// DeregisterNode is used to deregister a node.
-type DeregisterNode struct {
+// DeregisterNodeRequest is used to deregister a node.
+type DeregisterNodeRequest struct {
 	Node state.Node
 }
 

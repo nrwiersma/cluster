@@ -3,12 +3,13 @@ package agenttest
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/sdk/testutil/retry"
+	"github.com/hamba/testutils/retry"
 	"github.com/nrwiersma/cluster/cluster"
 	"github.com/travisjeffery/go-dynaport"
 )
@@ -30,7 +31,7 @@ func NewAgent(t *testing.T, cfgFn func(cfg *cluster.Config)) (*cluster.Agent, *c
 	config := cluster.NewConfig()
 	config.Name = fmt.Sprintf("%s-node-%d", t.Name(), id)
 	config.DataDir = tmpDir
-	config.RPCAddr = fmt.Sprintf("%s:%d", "127.0.0.1", ports[0])
+	config.RPCAddr = &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: ports[0]}
 	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
 	config.SerfConfig.MemberlistConfig.BindPort = ports[1]
 	config.LeaveDrainTime = 1 * time.Millisecond
@@ -88,7 +89,7 @@ func WaitForLeader(t *testing.T, agents ...*cluster.Agent) (*cluster.Agent, []*c
 		followers map[*cluster.Agent]bool
 	}{nil, make(map[*cluster.Agent]bool)}
 
-	retry.Run(t, func(r *retry.R) {
+	retry.Run(t, func(t *retry.SubT) {
 		for _, a := range agents {
 			if a.IsLeader() {
 				tmp.leader = a
@@ -99,7 +100,7 @@ func WaitForLeader(t *testing.T, agents ...*cluster.Agent) (*cluster.Agent, []*c
 		}
 
 		if tmp.leader == nil {
-			r.Fatal("no leader")
+			t.Fatal("no leader")
 		}
 	})
 

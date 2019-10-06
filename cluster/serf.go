@@ -67,7 +67,7 @@ func (a *Agent) nodeJoin(e serf.MemberEvent) {
 
 		a.log.Info("agent: adding agent", "id", agent.ID)
 
-		//a.brokerLookup.AddBroker(agent)
+		a.agentLookup.Add(agent)
 		if a.config.BootstrapExpect != 0 {
 			a.maybeBootstrap()
 		}
@@ -83,7 +83,7 @@ func (a *Agent) nodeFailed(e serf.MemberEvent) {
 
 		a.log.Info("agent: removing agent", "id", agent.ID)
 
-		//a.brokerLookup.RemoveBroker(agent)
+		a.agentLookup.Remove(agent)
 	}
 }
 

@@ -34,8 +34,8 @@ func New() (*FSM, error) {
 	}
 
 	fsm.handlers = map[rpc.MessageType]handler{
-		rpc.RegisterNodeType:   fsm.handleRegisterNode,
-		rpc.DeregisterNodeType: fsm.handleDeregisterNode,
+		rpc.RegisterNodeRequestType:   fsm.handleRegisterNodeRequest,
+		rpc.DeregisterNodeRequestType: fsm.handleDeregisterNodeRequest,
 	}
 
 	return fsm, nil

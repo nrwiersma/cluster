@@ -48,14 +48,13 @@ github.com/hamba/pkg v1.3.0/go.mod h1:x7sDdKHbJ/B+8djhGSlyoBVjX/48kiM3k9f86p7eRh
 github.com/hamba/statter v1.2.0/go.mod h1:WejmlyR9cUs+uDkJz4K6n2jRBVvHkYuaObsW59SlgZQ=
 github.com/hamba/statter v1.2.2 h1:HZOS8mIqACypcCU8RjwzrUcdxeb0/bo2k5yLZXBEnyw=
 github.com/hamba/statter v1.2.2/go.mod h1:0K+Mza+05BIJK7qQeKCXvMMeQLjX/IrLdNtbVZgVWF0=
+github.com/hamba/testutils v0.1.0 h1:0ou1Jf3gsKLPUL9lA70mNXKu0dZN9winAB4NfW93MHw=
+github.com/hamba/testutils v0.1.0/go.mod h1:HWPZ5kgg7Nx93Ywdqt06L6UExmcfIvQceH3fN+bYL5s=
 github.com/hamba/timex v1.0.0 h1:sZS2ayYoXTFZI+4VgQEM/+vWkkKKwRmUjVPaQixkqvY=
 github.com/hamba/timex v1.0.0/go.mod h1:Vxcwh2yr1/vkc0XVBfQSScn/MBsOKdatr6fVyj+isuo=
-github.com/hashicorp/consul/sdk v0.2.0 h1:GWFYFmry/k4b1hEoy7kSkmU8e30GAyI4VZHk0fRxeL4=
-github.com/hashicorp/consul/sdk v0.2.0/go.mod h1:VKf9jXwCTEY1QZP2MOLRhb5i/I/ssyNV1vwHyQBF0x8=
 github.com/hashicorp/errwrap v1.0.0 h1:hLrqtEDnRye3+sgx6z4qVLNuviH3MR5aQ0ykNJa/UYA=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
 github.com/hashicorp/go-cleanhttp v0.5.0/go.mod h1:JpRdi6/HCYpAwUzNwuwqhbovhLtngrth3wmdIIUrZ80=
-github.com/hashicorp/go-cleanhttp v0.5.1/go.mod h1:JpRdi6/HCYpAwUzNwuwqhbovhLtngrth3wmdIIUrZ80=
 github.com/hashicorp/go-hclog v0.9.1 h1:9PZfAcVEvez4yhLH2TBU64/h/z4xlFI80cWXRrxuKuM=
 github.com/hashicorp/go-hclog v0.9.1/go.mod h1:5CU+agLiy3J7N7QjHK5d05KxGsuXiQLrjA0H7acj2lQ=
 github.com/hashicorp/go-immutable-radix v1.0.0 h1:AKDB1HM5PWEA7i4nhcpwOrO2byshxBjXVn/J/3+z5/0=
@@ -113,7 +112,6 @@ github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5
 github.com/miekg/dns v1.0.14 h1:9jZdLNd/P4+SfEJ0TNyxYpsK8N4GtfylBLqtbYN1sbA=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/mitchellh/cli v1.0.0/go.mod h1:hNIlj7HEI86fIcpObd7a0FcrxTWetlwJDGcceTlRvqc=
-github.com/mitchellh/go-testing-interface v1.0.0/go.mod h1:kRemZodwjscx+RGhAo8eIhFbs2+BFgRtFPeD/KE+zxI=
 github.com/mitchellh/mapstructure v0.0.0-20160808181253-ca63d7c062ee/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w8PVh93nsPXa1VrQ6jlwL5oN8l14QlcNfg=

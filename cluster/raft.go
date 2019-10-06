@@ -245,7 +245,7 @@ func (a *Agent) handleAliveMember(m serf.Member) error {
 
 	a.log.Info("leader: member joined, marking health alive", "member", m.Name)
 
-	req := rpc.RegisterNode{
+	req := rpc.RegisterNodeRequest{
 		Node: state.Node{
 			ID:     agent.ID,
 			Health: state.HealthPassing,
@@ -256,7 +256,7 @@ func (a *Agent) handleAliveMember(m serf.Member) error {
 			},
 		},
 	}
-	_, err := a.raftApply(rpc.RegisterNodeType, &req)
+	_, err := a.raftApply(rpc.RegisterNodeRequestType, &req)
 	return err
 }
 
@@ -268,7 +268,7 @@ func (a *Agent) handleFailedMember(m serf.Member) error {
 
 	a.log.Info("leader: member failed, marking health critical", "member", m.Name)
 
-	req := rpc.RegisterNode{
+	req := rpc.RegisterNodeRequest{
 		Node: state.Node{
 			ID:     agent.ID,
 			Health: state.HealthCritical,
@@ -279,7 +279,7 @@ func (a *Agent) handleFailedMember(m serf.Member) error {
 			},
 		},
 	}
-	_, err := a.raftApply(rpc.RegisterNodeType, &req)
+	_, err := a.raftApply(rpc.RegisterNodeRequestType, &req)
 	return err
 }
 
@@ -309,10 +309,10 @@ func (a *Agent) handleDeregisterMember(reason string, member serf.Member) error 
 		return err
 	}
 
-	req := rpc.DeregisterNode{
+	req := rpc.DeregisterNodeRequest{
 		Node: state.Node{ID: agent.ID},
 	}
-	_, err := a.raftApply(rpc.DeregisterNodeType, &req)
+	_, err := a.raftApply(rpc.DeregisterNodeRequestType, &req)
 	return err
 }
 
