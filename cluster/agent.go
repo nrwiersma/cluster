@@ -16,9 +16,9 @@ import (
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
-	"github.com/nrwiersma/cluster/cluster/fsm"
-	"github.com/nrwiersma/cluster/cluster/rpc"
-	"github.com/nrwiersma/cluster/cluster/state"
+	"github.com/nrwiersma/cluster/cluster/internal/fsm"
+	raftrpc "github.com/nrwiersma/cluster/cluster/internal/rpc"
+	"github.com/nrwiersma/cluster/cluster/server"
 	"github.com/pkg/errors"
 	"github.com/segmentio/ksuid"
 )
@@ -37,7 +37,8 @@ type Agent struct {
 
 	fsm *fsm.FSM
 
-	ln net.Listener
+	ln  net.Listener
+	srv *server.Server
 
 	raft          *raft.Raft
 	raftStore     *raftboltdb.BoltStore
@@ -121,16 +122,6 @@ func NewAgent(cfg *Config) (*Agent, error) {
 	return agent, nil
 }
 
-// Store returns the current state store.
-//
-// During a restore a new store will be created and
-// the old store abandoned. If a reference to the
-// store is kept, the AbandonCh should be watched
-// and the new store fetched when it is closed.
-func (a *Agent) Store() *state.Store {
-	return a.fsm.Store()
-}
-
 // IsLeader indicates if the agent is the leader of the cluster.
 func (a *Agent) IsLeader() bool {
 	return a.raft.State() == raft.Leader
@@ -146,23 +137,15 @@ func (a *Agent) Members() []serf.Member {
 	return a.serf.Members()
 }
 
-// Apply applies the message to the state store. If the agent is not
-// the leader, it will be forwarded to the leader.
-func (a *Agent) Apply(t rpc.MessageType, msg interface{}) (interface{}, error) {
-
-	// Using apply over an rpc is an arb decision in a vague use case.
-	// Should the use need more logic to apply state, or even logic that
-	// is stateless but still the agents responsibility, this should be
-	// replaced with an RPC call (to perhaps msgpack rpc over net/rpc).
-	// We would then have 2 rpc cases, the internal raft state rpc and the
-	// outward facing rpc. It is unclear if it would still be a good idea
-	// to expose the store then.
-
-	if ok, reply, err := a.forward(t, msg); ok {
-		return reply, err
+// Call invokes the given named function, waits for it to complete,
+// and returns the error status. This is used to interact with the
+// cluster agent and its data.
+func (a *Agent) Call(method string, req, resp interface{}) error {
+	if ok, err := a.forward(method, req, resp); ok {
+		return err
 	}
 
-	return a.raftApply(t, msg)
+	return a.srv.Call(method, req, resp)
 }
 
 // Join joins the cluster using the given Serf addresses.
@@ -311,8 +294,8 @@ func (a *Agent) setupAgentID() error {
 	return nil
 }
 
-func (a *Agent) raftApply(t rpc.MessageType, msg interface{}) (interface{}, error) {
-	buf, err := rpc.Encode(t, msg)
+func (a *Agent) raftApply(t raftrpc.MessageType, msg interface{}) (interface{}, error) {
+	buf, err := raftrpc.Encode(t, msg)
 	if err != nil {
 		return nil, fmt.Errorf("agent: failed to encode request: %v", err)
 	}

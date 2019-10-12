@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/nrwiersma/cluster/cluster/metadata"
 	"github.com/nrwiersma/cluster/cluster/rpc"
+	"github.com/nrwiersma/cluster/cluster/server"
 )
 
 // ErrRaftLayerClosed is returned when performing an action on a closed
@@ -16,6 +17,8 @@ import (
 var ErrRaftLayerClosed = errors.New("RaftLayer closed")
 
 func (a *Agent) setupRPC() (err error) {
+	a.srv = server.New(a.fsm, a.raftApply)
+
 	a.ln, err = net.ListenTCP("tcp", a.config.RPCAddr)
 	if err != nil {
 		return err
@@ -51,29 +54,35 @@ func (a *Agent) handleConn(conn net.Conn) {
 
 var ErrNoLeader = errors.New("agent: no leader")
 
-func (a *Agent) forward(t rpc.MessageType, msg interface{}) (bool, interface{}, error) {
+func (a *Agent) forward(method string, req, resp interface{}) (bool, error) {
 	select {
 	case <-a.leaveCh:
-		return true, nil, ErrNoLeader
+		return true, ErrNoLeader
 	default:
 	}
 
 	// Check leadership
 	isLeader, leader := a.getLeader()
 	if isLeader {
-		return false, nil, nil
+		return false, nil
 	}
 	if leader == nil {
-		return true, nil, ErrNoLeader
+		return true, ErrNoLeader
 	}
 
-	//reply, err := a.connPool.Apply(leader.RPCAddr, t, msg)
-	//if err != nil {
+	// If the request allows stale reads, lots it fall through to the current agent
+	if rpcReq, ok := req.(rpc.RPCRequest); ok {
+		if rpcReq.IsRead() && rpcReq.AllowStaleRead() {
+			return false, nil
+		}
+	}
+
+	//if err := a.connPool.RPC(leader.RPCAddr, method, req, resp); err != nil {
 	//	// TODO: perhaps retry the request
-	//	return true, nil, err
+	//	return true, err
 	//}
-	//return true, reply, err
-	return false, nil, nil
+	//return true, err
+	return false, nil
 }
 
 func (a *Agent) getLeader() (bool, *metadata.Agent) {

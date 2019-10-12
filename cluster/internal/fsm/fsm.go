@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 
 	"github.com/hashicorp/raft"
-	"github.com/nrwiersma/cluster/cluster/rpc"
+	rpc2 "github.com/nrwiersma/cluster/cluster/internal/rpc"
 	"github.com/nrwiersma/cluster/cluster/state"
 	"github.com/pkg/errors"
 )
@@ -19,7 +19,7 @@ type handler func(buf []byte, index uint64) interface{}
 type FSM struct {
 	store *state.Store
 
-	handlers map[rpc.MessageType]handler
+	handlers map[rpc2.MessageType]handler
 }
 
 // New returns an FSM for the given agent id.
@@ -33,9 +33,9 @@ func New() (*FSM, error) {
 		store: store,
 	}
 
-	fsm.handlers = map[rpc.MessageType]handler{
-		rpc.RegisterNodeRequestType:   fsm.handleRegisterNodeRequest,
-		rpc.DeregisterNodeRequestType: fsm.handleDeregisterNodeRequest,
+	fsm.handlers = map[rpc2.MessageType]handler{
+		rpc2.RegisterNodeRequestType:   fsm.handleRegisterNodeRequest,
+		rpc2.DeregisterNodeRequestType: fsm.handleDeregisterNodeRequest,
 	}
 
 	return fsm, nil
@@ -49,7 +49,7 @@ func (f *FSM) Store() *state.Store {
 // Apply is invoked once a log has been committed.
 func (f *FSM) Apply(l *raft.Log) interface{} {
 	buf := l.Data
-	msgType := rpc.MessageType(buf[0])
+	msgType := rpc2.MessageType(buf[0])
 
 	if fn := f.handlers[msgType]; fn != nil {
 		return fn(buf[1:], l.Index)

@@ -9,9 +9,9 @@ import (
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
-	"github.com/nrwiersma/cluster/cluster/fsm"
+	"github.com/nrwiersma/cluster/cluster/internal/fsm"
+	"github.com/nrwiersma/cluster/cluster/internal/rpc"
 	"github.com/nrwiersma/cluster/cluster/metadata"
-	"github.com/nrwiersma/cluster/cluster/rpc"
 	"github.com/nrwiersma/cluster/cluster/state"
 	"github.com/nrwiersma/cluster/pkg/log"
 )
@@ -247,15 +247,17 @@ func (a *Agent) handleAliveMember(m serf.Member) error {
 
 	req := rpc.RegisterNodeRequest{
 		Node: state.Node{
-			ID:     agent.ID,
-			Health: state.HealthPassing,
-			Meta: map[string]string{
-				"name":      agent.Name,
-				"serf_addr": agent.SerfAddr,
-				"rpc_addr":  agent.RPCAddr,
-			},
+			ID:      m.Tags["id"],
+			Name:    m.Name,
+			Role:    m.Tags["role"],
+			Address: m.Addr.String(),
+			Health:  state.HealthPassing,
 		},
 	}
+	if agent != nil {
+		req.Node.Meta = m.Tags
+	}
+
 	_, err := a.raftApply(rpc.RegisterNodeRequestType, &req)
 	return err
 }
@@ -270,14 +272,15 @@ func (a *Agent) handleFailedMember(m serf.Member) error {
 
 	req := rpc.RegisterNodeRequest{
 		Node: state.Node{
-			ID:     agent.ID,
-			Health: state.HealthCritical,
-			Meta: map[string]string{
-				"name":      agent.Name,
-				"serf_addr": agent.SerfAddr,
-				"rpc_addr":  agent.RPCAddr,
-			},
+			ID:      m.Tags["id"],
+			Name:    m.Name,
+			Role:    m.Tags["role"],
+			Address: m.Addr.String(),
+			Health:  state.HealthCritical,
 		},
+	}
+	if agent != nil {
+		req.Node.Meta = m.Tags
 	}
 	_, err := a.raftApply(rpc.RegisterNodeRequestType, &req)
 	return err
@@ -287,12 +290,12 @@ func (a *Agent) handleLeftMember(m serf.Member) error {
 	return a.handleDeregisterMember("left", m)
 }
 
-func (a *Agent) handleReapMember(member serf.Member) error {
-	return a.handleDeregisterMember("reaped", member)
+func (a *Agent) handleReapMember(m serf.Member) error {
+	return a.handleDeregisterMember("reaped", m)
 }
 
-func (a *Agent) handleDeregisterMember(reason string, member serf.Member) error {
-	agent, ok := metadata.IsAgent(member)
+func (a *Agent) handleDeregisterMember(reason string, m serf.Member) error {
+	agent, ok := metadata.IsAgent(m)
 	if !ok {
 		return nil
 	}
@@ -302,15 +305,18 @@ func (a *Agent) handleDeregisterMember(reason string, member serf.Member) error 
 		return nil
 	}
 
-	a.log.Info("leader: member left", "member", member.Name, "reason", reason)
+	a.log.Info("leader: member left", "member", m.Name, "reason", reason)
 
-	if err := a.removeServer(member, agent); err != nil {
+	if err := a.removeServer(m, agent); err != nil {
 		a.log.Error("leader: error joining cluster", "member", agent.Name, "error", err)
 		return err
 	}
 
 	req := rpc.DeregisterNodeRequest{
-		Node: state.Node{ID: agent.ID},
+		Node: state.Node{
+			ID:   m.Tags["id"],
+			Name: m.Name,
+		},
 	}
 	_, err := a.raftApply(rpc.DeregisterNodeRequestType, &req)
 	return err

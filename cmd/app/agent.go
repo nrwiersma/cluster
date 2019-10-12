@@ -17,12 +17,6 @@ func runAgent(c *cli.Context) error {
 	}
 	defer agent.Close()
 
-	db, err := newDB(agent)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
 	join := ctx.StringSlice(flagJoin)
 	if len(join) > 0 {
 		if err := agent.Join(join...); err != nil {
@@ -30,7 +24,7 @@ func runAgent(c *cli.Context) error {
 		}
 	}
 
-	app, err := newApplication(ctx, agent, db)
+	app, err := newApplication(ctx, agent)
 	if err != nil {
 		return err
 	}

@@ -17,9 +17,12 @@ const (
 
 // Node is used to store info about a node.
 type Node struct {
-	ID     string
-	Health Health
-	Meta   map[string]string
+	ID      string
+	Name    string
+	Role    string
+	Address string
+	Health  Health
+	Meta    map[string]string
 }
 
 func nodesTableSchema() *memdb.TableSchema {
@@ -32,6 +35,14 @@ func nodesTableSchema() *memdb.TableSchema {
 				Unique:       true,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "ID",
+				},
+			},
+			"name": {
+				Name:         "name",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Name",
 				},
 			},
 		},
@@ -55,25 +66,25 @@ func (d *Store) Node(id string) (*Node, error) {
 
 // Nodes returns all the nodes as well as a watch channel that will be closed
 // when the nodes change.
-func (d *Store) Nodes(filters ...FilterFunc) ([]*Node, <-chan struct{}, error) {
+func (d *Store) Nodes(ws memdb.WatchSet) ([]*Node, error) {
 	tx := d.db.Txn(false)
 	defer tx.Abort()
 
 	iter, err := tx.Get("nodes", "id")
 	if err != nil {
-		return nil, nil, fmt.Errorf("node lookup failed: %s", err)
+		return nil, fmt.Errorf("node lookup failed: %s", err)
 	}
-
-	iter = applyFilters(iter, filters)
+	ws.Add(iter.WatchCh())
 
 	var nodes []*Node
 	for next := iter.Next(); next != nil; next = iter.Next() {
 		nodes = append(nodes, next.(*Node))
 	}
-	return nodes, iter.WatchCh(), nil
+	return nodes, nil
 }
 
-// EnsureNode inserts a node in the database.
+// EnsureNode inserts a node in the database. This is used by the FSM to
+// add and update nodes.
 func (d *Store) EnsureNode(idx uint64, node *Node) error {
 	tx := d.db.Txn(true)
 	defer tx.Abort()
@@ -86,7 +97,8 @@ func (d *Store) EnsureNode(idx uint64, node *Node) error {
 	return nil
 }
 
-// DeleteNode deletes a node from the database with the given id.
+// DeleteNode deletes a node from the database with the given id. This is
+// used by the FSM to delete nodes.
 func (d *Store) DeleteNode(idx uint64, id string) error {
 	tx := d.db.Txn(true)
 	defer tx.Abort()

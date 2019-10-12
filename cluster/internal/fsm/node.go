@@ -3,7 +3,7 @@ package fsm
 import (
 	"fmt"
 
-	"github.com/nrwiersma/cluster/cluster/rpc"
+	"github.com/nrwiersma/cluster/cluster/internal/rpc"
 )
 
 func (f *FSM) handleRegisterNodeRequest(buf []byte, idx uint64) interface{} {

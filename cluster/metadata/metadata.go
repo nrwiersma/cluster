@@ -29,6 +29,7 @@ func (a Agent) ToTags() map[string]string {
 		"cluster":   clusterName,
 		"id":        a.ID,
 		"name":      a.Name,
+		"role":      "agent",
 		"serf_addr": a.SerfAddr,
 		"rpc_addr":  a.RPCAddr,
 	}
