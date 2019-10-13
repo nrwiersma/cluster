@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/raft"
+	"github.com/nrwiersma/cluster/cluster/internal/fsm"
 	"github.com/nrwiersma/cluster/cluster/metadata"
 	"github.com/nrwiersma/cluster/cluster/rpc"
 	"github.com/nrwiersma/cluster/cluster/server"
@@ -16,8 +17,14 @@ import (
 // RaftLayer.
 var ErrRaftLayerClosed = errors.New("RaftLayer closed")
 
+// ErrNoLeader is returned when no leader can be found.
+var ErrNoLeader = errors.New("agent: no leader")
+
 func (a *Agent) setupRPC() (err error) {
-	a.srv = server.New(a.fsm, a.raftApply)
+	a.srv = server.New(
+		func() *fsm.FSM { return a.fsm },
+		a.raftApply,
+	)
 
 	a.ln, err = net.ListenTCP("tcp", a.config.RPCAddr)
 	if err != nil {
@@ -52,8 +59,6 @@ func (a *Agent) handleConn(conn net.Conn) {
 	_ = a.raftLayer.HandOff(conn)
 }
 
-var ErrNoLeader = errors.New("agent: no leader")
-
 func (a *Agent) forward(method string, req, resp interface{}) (bool, error) {
 	select {
 	case <-a.leaveCh:
@@ -71,7 +76,7 @@ func (a *Agent) forward(method string, req, resp interface{}) (bool, error) {
 	}
 
 	// If the request allows stale reads, lots it fall through to the current agent
-	if rpcReq, ok := req.(rpc.RPCRequest); ok {
+	if rpcReq, ok := req.(rpc.Request); ok {
 		if rpcReq.IsRead() && rpcReq.AllowStaleRead() {
 			return false, nil
 		}
@@ -120,6 +125,7 @@ func NewRaftLayer(addr net.Addr) *RaftLayer {
 	}
 }
 
+// HandOff hands a connection off to raft.
 func (l *RaftLayer) HandOff(conn net.Conn) error {
 	select {
 	case l.connCh <- conn:

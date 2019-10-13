@@ -1,7 +1,7 @@
 package rpc
 
-// RPCRequest represents an RPC request.
-type RPCRequest interface {
+// Request represents an RPC request.
+type Request interface {
 	IsRead() bool
 	AllowStaleRead() bool
 }

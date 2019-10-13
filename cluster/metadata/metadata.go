@@ -9,6 +9,7 @@ import (
 
 const (
 	clusterName = "test"
+	agentRole = "agent"
 )
 
 // Agent is an cluster agent with its configuration.
@@ -29,7 +30,7 @@ func (a Agent) ToTags() map[string]string {
 		"cluster":   clusterName,
 		"id":        a.ID,
 		"name":      a.Name,
-		"role":      "agent",
+		"role":      agentRole,
 		"serf_addr": a.SerfAddr,
 		"rpc_addr":  a.RPCAddr,
 	}
@@ -50,6 +51,9 @@ func (a Agent) ToTags() map[string]string {
 // IsAgent checks if the given serf member is an agent.
 func IsAgent(m serf.Member) (*Agent, bool) {
 	if m.Tags["cluster"] != clusterName {
+		return nil, false
+	}
+	if m.Tags["role"] != agentRole {
 		return nil, false
 	}
 

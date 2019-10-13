@@ -39,6 +39,7 @@ func NewApplication(cfg Config) *Application {
 	return app
 }
 
+// Close closes the application.
 func (a *Application) Close() error {
 	close(a.shutdownCh)
 	return nil

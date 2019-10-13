@@ -6,6 +6,7 @@ require (
 	github.com/hamba/cmd v1.4.1
 	github.com/hamba/pkg v1.3.0
 	github.com/hamba/testutils v0.1.0
+	github.com/hashicorp/go-bexpr v0.1.2
 	github.com/hashicorp/go-hclog v0.9.1
 	github.com/hashicorp/go-memdb v1.0.3
 	github.com/hashicorp/go-msgpack v0.5.5

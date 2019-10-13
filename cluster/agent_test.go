@@ -1,12 +1,14 @@
 package cluster_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/hamba/testutils/retry"
 	"github.com/nrwiersma/cluster/cluster"
 	"github.com/nrwiersma/cluster/cluster/agenttest"
+	"github.com/nrwiersma/cluster/cluster/rpc"
 	"github.com/nrwiersma/cluster/cluster/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,22 +43,35 @@ func TestAgent_CanRegisterMembers(t *testing.T) {
 	agenttest.Join(t, cfg2, a1)
 	agenttest.WaitForLeader(t, a1, a2)
 
-	store := a1.Store()
 	retry.Run(t, func(t *retry.SubT) {
-		node, err := store.Node(cfg1.ID)
+		req := rpc.NodesRequest{
+			Filter: fmt.Sprintf("ID == `%s`", cfg1.ID),
+			ReadRequest: rpc.ReadRequest{
+				AllowStale: true,
+			},
+		}
+		var resp rpc.NodesResponse
+		err := a1.Call("Cluster.GetNodes", &req, &resp)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if node == nil {
+		if len(resp.Nodes) != 1 {
 			t.Fatal("node not registered")
 		}
 	})
 	retry.Run(t, func(t *retry.SubT) {
-		node, err := store.Node(cfg2.ID)
+		req := rpc.NodesRequest{
+			Filter: fmt.Sprintf("ID == `%s`", cfg2.ID),
+			ReadRequest: rpc.ReadRequest{
+				AllowStale: true,
+			},
+		}
+		var resp rpc.NodesResponse
+		err := a1.Call("Cluster.GetNodes", &req, &resp)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if node == nil {
+		if len(resp.Nodes) != 1 {
 			t.Fatal("node not registered")
 		}
 	})
@@ -80,17 +95,22 @@ func TestAgent_HandlesFailedMember(t *testing.T) {
 
 	_ = a2.Close()
 
-	store := a1.Store()
-
 	retry.Run(t, func(t *retry.SubT) {
-		node, err := store.Node(cfg2.ID)
+		req := rpc.NodesRequest{
+			Filter: fmt.Sprintf("ID == `%s`", cfg2.ID),
+			ReadRequest: rpc.ReadRequest{
+				AllowStale: true,
+			},
+		}
+		var resp rpc.NodesResponse
+		err := a1.Call("Cluster.GetNodes", &req, &resp)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if node == nil {
+		if len(resp.Nodes) != 1 {
 			t.Fatal("node not registered")
 		}
-		if node.Health == state.HealthCritical {
+		if resp.Nodes[0].Health == state.HealthCritical {
 			t.Fatal("node not critical")
 		}
 	})
@@ -113,15 +133,21 @@ func TestAgent_HandlesLeftMember(t *testing.T) {
 	agenttest.Join(t, cfg2, a1)
 	agenttest.WaitForLeader(t, a1, a2)
 
-	store := a1.Store()
+	req := rpc.NodesRequest{
+		Filter: fmt.Sprintf("ID == `%s`", cfg2.ID),
+		ReadRequest: rpc.ReadRequest{
+			AllowStale: true,
+		},
+	}
 
 	// Should be registered
 	retry.Run(t, func(t *retry.SubT) {
-		node, err := store.Node(cfg2.ID)
+		var resp rpc.NodesResponse
+		err := a1.Call("Cluster.GetNodes", &req, &resp)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if node == nil {
+		if len(resp.Nodes) != 1 {
 			t.Fatal("node isn't registered")
 		}
 	})
@@ -131,11 +157,12 @@ func TestAgent_HandlesLeftMember(t *testing.T) {
 
 	// Should be deregistered
 	retry.Run(t, func(t *retry.SubT) {
-		node, err := store.Node(cfg2.ID)
+		var resp rpc.NodesResponse
+		err := a1.Call("Cluster.GetNodes", &req, &resp)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if node != nil {
+		if len(resp.Nodes) != 0 {
 			t.Fatal("node still registered")
 		}
 	})
@@ -182,13 +209,19 @@ func TestAgent_HandlesLeftLeader(t *testing.T) {
 	leader2, _ := agenttest.WaitForLeader(t, followers...)
 	require.NotNil(t, leader2)
 
-	store := leader2.Store()
 	retry.Run(t, func(t *retry.SubT) {
-		node, err := store.Node(leaderCfg.ID)
+		req := rpc.NodesRequest{
+			Filter: fmt.Sprintf("ID == `%s`", leaderCfg.ID),
+			ReadRequest: rpc.ReadRequest{
+				AllowStale: true,
+			},
+		}
+		var resp rpc.NodesResponse
+		err := leader2.Call("Cluster.GetNodes", &req, &resp)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if node != nil {
+		if len(resp.Nodes) != 0 {
 			t.Fatal("leader should be deregistered")
 		}
 	})

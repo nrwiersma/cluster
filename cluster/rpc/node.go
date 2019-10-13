@@ -3,8 +3,8 @@ package rpc
 // NodesRequest is used to request a the nodes.
 type NodesRequest struct {
 	// Filter is a go-bexpr filter expression to filter the
-	// nodes by before returning
-	//Filter string
+	// nodes by before returning.
+	Filter string
 
 	ReadRequest
 }
