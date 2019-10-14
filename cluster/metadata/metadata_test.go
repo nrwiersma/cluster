@@ -194,6 +194,7 @@ func TestIsAgent(t *testing.T) {
 					"cluster":   "test",
 					"id":        "id",
 					"name":      "name",
+					"role":      "agent",
 					"expect":    "foobar",
 					"rpc_addr":  "rpc-addr",
 					"serf_addr": "serf-addr",

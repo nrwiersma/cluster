@@ -45,6 +45,8 @@ type Agent struct {
 	raftLayer     *RaftLayer
 	raftTransport *raft.NetworkTransport
 	raftNotifyCh  chan bool
+	raftNotifyMu  sync.Mutex
+	raftNotifyFns []func(chan struct{})
 
 	serf        *serf.Serf
 	eventCh     chan serf.Event
@@ -125,6 +127,15 @@ func NewAgent(cfg *Config) (*Agent, error) {
 // IsLeader indicates if the agent is the leader of the cluster.
 func (a *Agent) IsLeader() bool {
 	return a.raft.State() == raft.Leader
+}
+
+// AddLeaderFunc adds a function to be run when leadership is acquired.
+// A stop channel is provided that will be closed to stop the function
+// when leadership is lost.
+func (a *Agent) AddLeaderFunc(fn func(chan struct{})) {
+	a.raftNotifyMu.Lock()
+	a.raftNotifyFns = append(a.raftNotifyFns, fn)
+	a.raftNotifyMu.Unlock()
 }
 
 // LocalMember is used to return the local node

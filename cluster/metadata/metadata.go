@@ -9,7 +9,7 @@ import (
 
 const (
 	clusterName = "test"
-	agentRole = "agent"
+	agentRole   = "agent"
 )
 
 // Agent is an cluster agent with its configuration.

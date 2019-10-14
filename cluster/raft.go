@@ -98,40 +98,50 @@ func (a *Agent) setupRaft() (err error) {
 // monitorLeadership monitors leadership change in raft, starting the leader loop
 // when the server becomes leader.
 func (a *Agent) monitorLeadership() {
-	var leaderLoopCh chan struct{}
+	var leaderStopCh chan struct{}
 	var leaderLoop sync.WaitGroup
 
 	for {
 		select {
 		case leader := <-a.raftNotifyCh:
 			if leader {
-				if leaderLoopCh != nil {
+				if leaderStopCh != nil {
 					a.log.Error("leader: attempted to start the leader loop while running")
 					continue
 				}
 
-				leaderLoopCh = make(chan struct{})
+				leaderStopCh = make(chan struct{})
 				leaderLoop.Add(1)
 				go func(ch chan struct{}) {
 					defer leaderLoop.Done()
 					a.leaderLoop(ch)
-				}(leaderLoopCh)
+				}(leaderStopCh)
+
+				a.raftNotifyMu.Lock()
+				for _, fn := range a.raftNotifyFns {
+					leaderLoop.Add(1)
+					go func(ch chan struct{}) {
+						defer leaderLoop.Done()
+						fn(ch)
+					}(leaderStopCh)
+				}
+				a.raftNotifyMu.Unlock()
 
 				a.log.Info("leader: cluster leadership acquired")
 
 				continue
 			}
 
-			if leaderLoopCh == nil {
+			if leaderStopCh == nil {
 				a.log.Error("leader: attempted to stop the leader loop while not running")
 				continue
 			}
 
 			a.log.Debug("leader: shutting down leader loop")
 
-			close(leaderLoopCh)
+			close(leaderStopCh)
 			leaderLoop.Wait()
-			leaderLoopCh = nil
+			leaderStopCh = nil
 
 			a.log.Info("leader: cluster leadership lost")
 
