@@ -12,6 +12,10 @@ type NodesRequest struct {
 // NodesResponse are the nodes returned from
 // a nodes request.
 type NodesResponse struct {
+	// Index is the last index in the nodes table.
+	Index uint64
+
+	// Nodes are the nodes found.
 	Nodes []Node
 }
 

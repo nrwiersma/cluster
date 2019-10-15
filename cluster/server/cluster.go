@@ -18,11 +18,12 @@ func (a *Cluster) GetNodes(req *rpc.NodesRequest, resp *rpc.NodesResponse) error
 	}
 
 	store := a.srv.state.Store()
-	nodes, err := store.Nodes(nil)
+	idx, nodes, err := store.Nodes(nil)
 	if err != nil {
 		return err
 	}
 
+	resp.Index = idx
 	for _, node := range nodes {
 		n := rpc.Node{
 			ID:      node.ID,

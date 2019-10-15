@@ -23,6 +23,8 @@ type Node struct {
 	Address string
 	Health  Health
 	Meta    map[string]string
+
+	RaftIndex
 }
 
 func nodesTableSchema() *memdb.TableSchema {
@@ -49,30 +51,41 @@ func nodesTableSchema() *memdb.TableSchema {
 	}
 }
 
+// Nodes returns the nodes for a given snapshot.
+func (s *Snapshot) Nodes() (memdb.ResultIterator, error) {
+	return s.tx.Get("nodes", "id")
+}
+
+func (r *Restore) Node(idx uint64, node *Node) error {
+	return ensureNodeTx(r.tx, idx, node)
+}
+
 // Node returns a node with the given id or nil.
-func (d *Store) Node(id string) (*Node, error) {
+func (d *Store) Node(id string) (uint64, *Node, error) {
 	tx := d.db.Txn(false)
 	defer tx.Abort()
 
+	idx := maxIndex(tx, "nodes")
 	node, err := tx.First("nodes", "id", id)
 	if err != nil {
-		return nil, fmt.Errorf("db: node lookup failed: %s", err)
+		return 0, nil, fmt.Errorf("db: node lookup failed: %s", err)
 	}
 	if node != nil {
-		return node.(*Node), nil
+		return idx, node.(*Node), nil
 	}
-	return nil, nil
+	return idx, nil, nil
 }
 
 // Nodes returns all the nodes as well as a watch channel that will be closed
 // when the nodes change.
-func (d *Store) Nodes(ws memdb.WatchSet) ([]*Node, error) {
+func (d *Store) Nodes(ws memdb.WatchSet) (uint64, []*Node, error) {
 	tx := d.db.Txn(false)
 	defer tx.Abort()
 
+	idx := maxIndex(tx, "nodes")
 	iter, err := tx.Get("nodes", "id")
 	if err != nil {
-		return nil, fmt.Errorf("node lookup failed: %s", err)
+		return 0, nil, fmt.Errorf("node lookup failed: %s", err)
 	}
 	ws.Add(iter.WatchCh())
 
@@ -80,7 +93,7 @@ func (d *Store) Nodes(ws memdb.WatchSet) ([]*Node, error) {
 	for next := iter.Next(); next != nil; next = iter.Next() {
 		nodes = append(nodes, next.(*Node))
 	}
-	return nodes, nil
+	return idx, nodes, nil
 }
 
 // EnsureNode inserts a node in the database. This is used by the FSM to
@@ -89,11 +102,23 @@ func (d *Store) EnsureNode(idx uint64, node *Node) error {
 	tx := d.db.Txn(true)
 	defer tx.Abort()
 
-	if err := tx.Insert("nodes", node); err != nil {
-		return fmt.Errorf("db: failed inserting node: %w", err)
+	if err := ensureNodeTx(tx, idx, node); err != nil {
+		return err
 	}
 
 	tx.Commit()
+	return nil
+}
+
+func ensureNodeTx(tx *memdb.Txn, idx uint64, node *Node) error {
+	node.Index = idx
+
+	if err := tx.Insert("nodes", node); err != nil {
+		return fmt.Errorf("db: failed inserting node: %w", err)
+	}
+	if err := updateIndex(tx, "nodes", idx); err != nil {
+		return fmt.Errorf("failed updating index: %w", err)
+	}
 	return nil
 }
 
@@ -113,6 +138,9 @@ func (d *Store) DeleteNode(idx uint64, id string) error {
 
 	if err := tx.Delete("nodes", node); err != nil {
 		return err
+	}
+	if err := updateIndex(tx, "nodes", idx); err != nil {
+		return fmt.Errorf("failed updating index: %w", err)
 	}
 
 	tx.Commit()

@@ -11,7 +11,8 @@ type MessageType int8
 
 // RPC message types.
 const (
-	RegisterNodeRequestType MessageType = iota
+	IndexRequestType MessageType = iota
+	RegisterNodeRequestType
 	DeregisterNodeRequestType
 )
 
