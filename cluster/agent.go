@@ -40,13 +40,12 @@ type Agent struct {
 	ln  net.Listener
 	srv *server.Server
 
-	raft          *raft.Raft
-	raftStore     *raftboltdb.BoltStore
-	raftLayer     *RaftLayer
-	raftTransport *raft.NetworkTransport
-	raftNotifyCh  chan bool
-	raftNotifyMu  sync.Mutex
-	raftNotifyFns []func(chan struct{})
+	raft               *raft.Raft
+	raftStore          *raftboltdb.BoltStore
+	raftLayer          *RaftLayer
+	raftTransport      *raft.NetworkTransport
+	raftNotifyCh       chan bool
+	raftRoutineManager *LeaderRoutineManager
 
 	serf        *serf.Serf
 	eventCh     chan serf.Event
@@ -86,14 +85,15 @@ func NewAgent(cfg *Config) (*Agent, error) {
 	}
 
 	agent := &Agent{
-		config:       cfg,
-		raftNotifyCh: make(chan bool, 1),
-		eventCh:      make(chan serf.Event, 256),
-		reconcileCh:  make(chan serf.Member, 32),
-		agentLookup:  newAgentLookup(),
-		leaveCh:      make(chan struct{}),
-		shutdownCh:   make(chan struct{}),
-		log:          logger,
+		config:             cfg,
+		raftNotifyCh:       make(chan bool, 1),
+		eventCh:            make(chan serf.Event, 256),
+		reconcileCh:        make(chan serf.Member, 32),
+		raftRoutineManager: &LeaderRoutineManager{},
+		agentLookup:        newAgentLookup(),
+		leaveCh:            make(chan struct{}),
+		shutdownCh:         make(chan struct{}),
+		log:                logger,
 	}
 
 	if err := agent.setupAgentID(); err != nil {
@@ -129,13 +129,11 @@ func (a *Agent) IsLeader() bool {
 	return a.raft.State() == raft.Leader
 }
 
-// AddLeaderFunc adds a function to be run when leadership is acquired.
-// A stop channel is provided that will be closed to stop the function
+// AddLeaderRoutine adds a function to be run when leadership is acquired.
+// A context is provided that will be canceled to stop the function
 // when leadership is lost.
-func (a *Agent) AddLeaderFunc(fn func(chan struct{})) {
-	a.raftNotifyMu.Lock()
-	a.raftNotifyFns = append(a.raftNotifyFns, fn)
-	a.raftNotifyMu.Unlock()
+func (a *Agent) AddLeaderRoutine(routine LeaderRoutine) {
+	a.raftRoutineManager.Register(routine)
 }
 
 // LocalMember is used to return the local node

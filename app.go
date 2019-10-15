@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -8,12 +9,13 @@ import (
 
 	"github.com/hamba/pkg/log"
 	"github.com/hamba/pkg/stats"
+	"github.com/nrwiersma/cluster/cluster"
 	"github.com/nrwiersma/cluster/cluster/rpc"
 )
 
 // Agent represents a cluster agent.
 type Agent interface {
-	AddLeaderFunc(fn func(chan struct{}))
+	AddLeaderRoutine(routine cluster.LeaderRoutine)
 	Call(method string, req, resp interface{}) error
 }
 
@@ -43,12 +45,12 @@ func NewApplication(cfg Config) *Application {
 		statter:    cfg.Statter,
 	}
 
-	app.agent.AddLeaderFunc(app.printNodes)
+	app.agent.AddLeaderRoutine(app.printNodes)
 
 	return app
 }
 
-func (a *Application) printNodes(stopCh chan struct{}) {
+func (a *Application) printNodes(ctx context.Context) {
 	a.logger.Info("I am the leader!")
 
 	ticker := time.NewTicker(10 * time.Second)
@@ -56,7 +58,7 @@ func (a *Application) printNodes(stopCh chan struct{}) {
 
 	for {
 		select {
-		case <-stopCh:
+		case <-ctx.Done():
 			a.logger.Info("Leadership lost, stopping!")
 			return
 

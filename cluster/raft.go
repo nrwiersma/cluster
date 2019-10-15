@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -117,15 +118,7 @@ func (a *Agent) monitorLeadership() {
 					a.leaderLoop(ch)
 				}(leaderStopCh)
 
-				a.raftNotifyMu.Lock()
-				for _, fn := range a.raftNotifyFns {
-					leaderLoop.Add(1)
-					go func(ch chan struct{}) {
-						defer leaderLoop.Done()
-						fn(ch)
-					}(leaderStopCh)
-				}
-				a.raftNotifyMu.Unlock()
+				a.raftRoutineManager.Start()
 
 				a.log.Info("leader: cluster leadership acquired")
 
@@ -139,6 +132,7 @@ func (a *Agent) monitorLeadership() {
 
 			a.log.Debug("leader: shutting down leader loop")
 
+			a.raftRoutineManager.Stop()
 			close(leaderStopCh)
 			leaderLoop.Wait()
 			leaderStopCh = nil
@@ -417,4 +411,60 @@ func (a *Agent) removeServer(m serf.Member, agent *metadata.Agent) error {
 		}
 	}
 	return nil
+}
+
+// LeaderRoutine is a routine to be run when acquiring leadership
+type LeaderRoutine func(ctx context.Context)
+
+// LeaderRoutineManager manages routines to run when leadership is
+// acquired.
+type LeaderRoutineManager struct {
+	mu       sync.Mutex
+	routines []LeaderRoutine
+	running  bool
+	ctx      context.Context
+	cancel   context.CancelFunc
+}
+
+// Register registers a routine to run.
+func (m *LeaderRoutineManager) Register(routine LeaderRoutine) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.routines = append(m.routines, routine)
+
+	if m.running {
+		go routine(m.ctx)
+	}
+}
+
+// Start starts the registered routines.
+func (m *LeaderRoutineManager) Start() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.running {
+		return
+	}
+	m.running = true
+
+	m.ctx, m.cancel = context.WithCancel(context.Background())
+	for _, routine := range m.routines {
+		go routine(m.ctx)
+	}
+}
+
+// Stop signals all the routines to stop.
+func (m *LeaderRoutineManager) Stop() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.running {
+		return
+	}
+	m.running = false
+
+	m.cancel()
+	m.cancel = nil
+	m.ctx = nil
 }
