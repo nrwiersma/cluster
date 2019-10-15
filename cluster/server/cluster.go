@@ -17,7 +17,7 @@ func (a *Cluster) GetNodes(req *rpc.NodesRequest, resp *rpc.NodesResponse) error
 		return err
 	}
 
-	store := a.srv.fsm().Store()
+	store := a.srv.state.Store()
 	nodes, err := store.Nodes(nil)
 	if err != nil {
 		return err

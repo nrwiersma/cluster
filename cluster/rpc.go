@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/raft"
-	"github.com/nrwiersma/cluster/cluster/internal/fsm"
+	rpc2 "github.com/nrwiersma/cluster/cluster/internal/rpc"
 	"github.com/nrwiersma/cluster/cluster/metadata"
 	"github.com/nrwiersma/cluster/cluster/rpc"
 	"github.com/nrwiersma/cluster/cluster/server"
+	"github.com/nrwiersma/cluster/cluster/state"
 )
 
 // ErrRaftLayerClosed is returned when performing an action on a closed
@@ -20,11 +21,20 @@ var ErrRaftLayerClosed = errors.New("RaftLayer closed")
 // ErrNoLeader is returned when no leader can be found.
 var ErrNoLeader = errors.New("agent: no leader")
 
+type agentStateDelegate struct {
+	agent *Agent
+}
+
+func (d *agentStateDelegate) Store() *state.Store {
+	return d.agent.fsm.Store()
+}
+
+func (d *agentStateDelegate) Apply(t rpc2.MessageType, msg interface{}) (interface{}, error) {
+	return d.agent.raftApply(t, msg)
+}
+
 func (a *Agent) setupRPC() (err error) {
-	a.srv = server.New(
-		func() *fsm.FSM { return a.fsm },
-		a.raftApply,
-	)
+	a.srv = server.New(&agentStateDelegate{a})
 
 	a.ln, err = net.ListenTCP("tcp", a.config.RPCAddr)
 	if err != nil {

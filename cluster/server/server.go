@@ -3,30 +3,28 @@ package server
 import (
 	"net/rpc"
 
-	"github.com/nrwiersma/cluster/cluster/internal/fsm"
 	raftrpc "github.com/nrwiersma/cluster/cluster/internal/rpc"
+	"github.com/nrwiersma/cluster/cluster/state"
 	"github.com/nrwiersma/cluster/pkg/memcodec"
 )
 
-// FSM represents a function that returns an FSM.
-type FSM func() *fsm.FSM
-
-// Apply represents a function that can apply to the raft state.
-type Apply func(t raftrpc.MessageType, msg interface{}) (interface{}, error)
+// StateDelegate represents an object that can handle state.
+type StateDelegate interface {
+	Store() *state.Store
+	Apply(t raftrpc.MessageType, msg interface{}) (interface{}, error)
+}
 
 // Server is an RPC server
 type Server struct {
-	fsm   FSM
-	apply Apply
+	state StateDelegate
 
 	server *rpc.Server
 }
 
 // New returns an RPC server.
-func New(fsm FSM, apply Apply) *Server {
+func New(state StateDelegate) *Server {
 	srv := &Server{
-		fsm:    fsm,
-		apply:  apply,
+		state:  state,
 		server: rpc.NewServer(),
 	}
 
