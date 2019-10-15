@@ -1,12 +1,19 @@
 package cluster
 
 import (
+	"fmt"
+	"os"
+	"text/tabwriter"
+	"time"
+
 	"github.com/hamba/pkg/log"
 	"github.com/hamba/pkg/stats"
+	"github.com/nrwiersma/cluster/cluster/rpc"
 )
 
 // Agent represents a cluster agent.
 type Agent interface {
+	AddLeaderFunc(fn func(chan struct{}))
 	Call(method string, req, resp interface{}) error
 }
 
@@ -36,7 +43,42 @@ func NewApplication(cfg Config) *Application {
 		statter:    cfg.Statter,
 	}
 
+	app.agent.AddLeaderFunc(app.printNodes)
+
 	return app
+}
+
+func (a *Application) printNodes(stopCh chan struct{}) {
+	a.logger.Info("I am the leader!")
+
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-stopCh:
+			a.logger.Info("Leadership lost, stopping!")
+			return
+
+		case <-ticker.C:
+			req := rpc.NodesRequest{}
+			var resp rpc.NodesResponse
+			err := a.agent.Call("Cluster.GetNodes", &req, &resp)
+			if err != nil {
+				a.logger.Error("Error getting nodes", "error", err)
+				continue
+			}
+
+			tw := tabwriter.NewWriter(os.Stdout, 10, 4, 2, ' ', 0)
+			fmt.Fprintln(tw, "")
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", "ID", "Name", "Role", "Address", "Health")
+			for _, node := range resp.Nodes {
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", node.ID, node.Name, node.Role, node.Address, node.Health)
+			}
+			fmt.Fprintln(tw, "")
+			tw.Flush()
+		}
+	}
 }
 
 // Close closes the application.
