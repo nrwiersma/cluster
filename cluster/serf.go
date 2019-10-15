@@ -3,6 +3,7 @@ package cluster
 import (
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -29,6 +30,7 @@ func (a *Agent) setupSerf(config *serf.Config, ch chan serf.Event, path string) 
 	config.EventCh = ch
 	config.EnableNameConflictResolution = false
 	config.SnapshotPath = filepath.Join(a.config.DataDir, path)
+	config.ReconnectTimeout = time.Minute // TODO: set this to like an hour
 
 	if err := ensurePath(config.SnapshotPath, false); err != nil {
 		return nil, err
