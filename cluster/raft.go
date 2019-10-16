@@ -133,6 +133,7 @@ func (a *Agent) monitorLeadership() {
 			a.log.Debug("leader: shutting down leader loop")
 
 			a.raftRoutineManager.Stop()
+
 			close(leaderStopCh)
 			leaderLoop.Wait()
 			leaderStopCh = nil
@@ -422,6 +423,7 @@ type LeaderRoutineManager struct {
 	mu       sync.Mutex
 	routines []LeaderRoutine
 	running  bool
+	wg       sync.WaitGroup
 	ctx      context.Context
 	cancel   context.CancelFunc
 }
@@ -434,7 +436,11 @@ func (m *LeaderRoutineManager) Register(routine LeaderRoutine) {
 	m.routines = append(m.routines, routine)
 
 	if m.running {
-		go routine(m.ctx)
+		m.wg.Add(1)
+		go func() {
+			defer m.wg.Done()
+			routine(m.ctx)
+		}()
 	}
 }
 
@@ -450,7 +456,11 @@ func (m *LeaderRoutineManager) Start() {
 
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	for _, routine := range m.routines {
-		go routine(m.ctx)
+		m.wg.Add(1)
+		go func() {
+			defer m.wg.Done()
+			routine(m.ctx)
+		}()
 	}
 }
 
@@ -459,12 +469,15 @@ func (m *LeaderRoutineManager) Stop() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.running {
+	if !m.running {
 		return
 	}
 	m.running = false
 
 	m.cancel()
+
+	m.wg.Wait()
+
 	m.cancel = nil
 	m.ctx = nil
 }

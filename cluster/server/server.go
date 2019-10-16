@@ -2,10 +2,18 @@ package server
 
 import (
 	"net/rpc"
+	"time"
 
+	"github.com/hashicorp/go-memdb"
 	raftrpc "github.com/nrwiersma/cluster/cluster/internal/rpc"
+	rpc2 "github.com/nrwiersma/cluster/cluster/rpc"
 	"github.com/nrwiersma/cluster/cluster/state"
 	"github.com/nrwiersma/cluster/pkg/memcodec"
+)
+
+const (
+	maxQueryTime     = 600 * time.Second
+	defaultQueryTime = 300 * time.Second
 )
 
 // StateDelegate represents an object that can handle state.
@@ -45,4 +53,48 @@ func (s *Server) Call(method string, req, resp interface{}) error {
 		return err
 	}
 	return codec.Error
+}
+
+type queryFn func(memdb.WatchSet, *state.Store) error
+
+func (s *Server) Query(req *rpc2.ReadRequest, meta *rpc2.ResponseMeta, fn queryFn) error {
+	var timeout *time.Timer
+
+	if req.MinQueryIndex > 0 {
+		queryTimeout := req.MaxQueryTime
+		if queryTimeout > maxQueryTime {
+			queryTimeout = maxQueryTime
+		} else if queryTimeout <= 0 {
+			queryTimeout = defaultQueryTime
+		}
+
+		timeout = time.NewTimer(queryTimeout)
+		defer timeout.Stop()
+	}
+
+	var err error
+	for {
+		store := s.state.Store()
+
+		var ws memdb.WatchSet
+		if req.MinQueryIndex > 0 {
+			ws = memdb.NewWatchSet()
+
+			ws.Add(store.AbandonCh())
+		}
+
+		err = fn(ws, store)
+
+		if err == nil && meta.Index < 1 {
+			meta.Index = 1
+		}
+
+		if err == nil && req.MinQueryIndex > 0 && meta.Index <= req.MinQueryIndex {
+			if expired := ws.Watch(timeout.C); !expired {
+				continue
+			}
+		}
+
+		return err
+	}
 }

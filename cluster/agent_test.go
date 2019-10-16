@@ -46,9 +46,6 @@ func TestAgent_CanRegisterMembers(t *testing.T) {
 	retry.Run(t, func(t *retry.SubT) {
 		req := rpc.NodesRequest{
 			Filter: fmt.Sprintf("ID == `%s`", cfg1.ID),
-			ReadRequest: rpc.ReadRequest{
-				AllowStale: true,
-			},
 		}
 		var resp rpc.NodesResponse
 		err := a1.Call("Cluster.GetNodes", &req, &resp)
@@ -62,9 +59,6 @@ func TestAgent_CanRegisterMembers(t *testing.T) {
 	retry.Run(t, func(t *retry.SubT) {
 		req := rpc.NodesRequest{
 			Filter: fmt.Sprintf("ID == `%s`", cfg2.ID),
-			ReadRequest: rpc.ReadRequest{
-				AllowStale: true,
-			},
 		}
 		var resp rpc.NodesResponse
 		err := a1.Call("Cluster.GetNodes", &req, &resp)
@@ -98,9 +92,6 @@ func TestAgent_HandlesFailedMember(t *testing.T) {
 	retry.Run(t, func(t *retry.SubT) {
 		req := rpc.NodesRequest{
 			Filter: fmt.Sprintf("ID == `%s`", cfg2.ID),
-			ReadRequest: rpc.ReadRequest{
-				AllowStale: true,
-			},
 		}
 		var resp rpc.NodesResponse
 		err := a1.Call("Cluster.GetNodes", &req, &resp)
@@ -135,9 +126,6 @@ func TestAgent_HandlesLeftMember(t *testing.T) {
 
 	req := rpc.NodesRequest{
 		Filter: fmt.Sprintf("ID == `%s`", cfg2.ID),
-		ReadRequest: rpc.ReadRequest{
-			AllowStale: true,
-		},
 	}
 
 	// Should be registered
@@ -212,9 +200,6 @@ func TestAgent_HandlesLeftLeader(t *testing.T) {
 	retry.Run(t, func(t *retry.SubT) {
 		req := rpc.NodesRequest{
 			Filter: fmt.Sprintf("ID == `%s`", leaderCfg.ID),
-			ReadRequest: rpc.ReadRequest{
-				AllowStale: true,
-			},
 		}
 		var resp rpc.NodesResponse
 		err := leader2.Call("Cluster.GetNodes", &req, &resp)

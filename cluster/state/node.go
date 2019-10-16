@@ -27,6 +27,15 @@ type Node struct {
 	RaftIndex
 }
 
+// Same checks is the nodes look the same.
+func (n *Node) Same(o *Node) bool {
+	return n.ID == o.ID &&
+		n.Name == o.Name &&
+		n.Role == o.Role &&
+		n.Address == o.Address &&
+		n.Health == o.Health
+}
+
 func nodesTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "nodes",
@@ -112,6 +121,17 @@ func (d *Store) EnsureNode(idx uint64, node *Node) error {
 
 func ensureNodeTx(tx *memdb.Txn, idx uint64, node *Node) error {
 	node.Index = idx
+
+	existing, err := tx.First("nodes", "id", node.ID)
+	if err != nil {
+		return err
+	}
+
+	// If the node already exists, check if an update is needed, otherwise leave it.
+	// This will stop chatty updates about nodes from serf.
+	if existing != nil && node.Same(existing.(*Node)) {
+		return nil
+	}
 
 	if err := tx.Insert("nodes", node); err != nil {
 		return fmt.Errorf("db: failed inserting node: %w", err)

@@ -53,8 +53,7 @@ func NewApplication(cfg Config) *Application {
 func (a *Application) printNodes(ctx context.Context) {
 	a.logger.Info("I am the leader!")
 
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
+	var lastIndex uint64
 
 	for {
 		select {
@@ -62,24 +61,36 @@ func (a *Application) printNodes(ctx context.Context) {
 			a.logger.Info("Leadership lost, stopping!")
 			return
 
-		case <-ticker.C:
-			req := rpc.NodesRequest{}
-			var resp rpc.NodesResponse
-			err := a.agent.Call("Cluster.GetNodes", &req, &resp)
-			if err != nil {
-				a.logger.Error("Error getting nodes", "error", err)
-				continue
-			}
-
-			tw := tabwriter.NewWriter(os.Stdout, 10, 4, 2, ' ', 0)
-			fmt.Fprintln(tw, "")
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", "ID", "Name", "Role", "Address", "Health")
-			for _, node := range resp.Nodes {
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", node.ID, node.Name, node.Role, node.Address, node.Health)
-			}
-			fmt.Fprintln(tw, "")
-			tw.Flush()
+		default:
 		}
+
+		req := rpc.NodesRequest{
+			ReadRequest: rpc.ReadRequest{
+				MinQueryIndex: lastIndex,
+				MaxQueryTime:  10 * time.Second,
+			},
+		}
+		var resp rpc.NodesResponse
+		err := a.agent.Call("Cluster.GetNodes", &req, &resp)
+		if err != nil {
+			a.logger.Error("Error getting nodes", "error", err)
+			continue
+		}
+
+		// Nothing changed, we dont need to print
+		if resp.Index <= lastIndex {
+			continue
+		}
+		lastIndex = resp.Index
+
+		tw := tabwriter.NewWriter(os.Stdout, 10, 4, 2, ' ', 0)
+		fmt.Fprintln(tw, "")
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", "ID", "Name", "Role", "Address", "Health")
+		for _, node := range resp.Nodes {
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", node.ID, node.Name, node.Role, node.Address, node.Health)
+		}
+		fmt.Fprintln(tw, "")
+		tw.Flush()
 	}
 }
 

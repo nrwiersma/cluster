@@ -2,18 +2,17 @@ package rpc
 
 // NodesRequest is used to request a the nodes.
 type NodesRequest struct {
+	ReadRequest
+
 	// Filter is a go-bexpr filter expression to filter the
 	// nodes by before returning.
 	Filter string
-
-	ReadRequest
 }
 
 // NodesResponse are the nodes returned from
 // a nodes request.
 type NodesResponse struct {
-	// Index is the last index in the nodes table.
-	Index uint64
+	ResponseMeta
 
 	// Nodes are the nodes found.
 	Nodes []Node
