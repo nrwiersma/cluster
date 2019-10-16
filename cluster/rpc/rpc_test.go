@@ -11,24 +11,27 @@ import (
 func TestReadRequest(t *testing.T) {
 	tests := []struct {
 		name       string
-		allowStale bool
+		forceFresh bool
+		want       bool
 	}{
 		{
 			name:       "Allow Stale",
-			allowStale: true,
+			forceFresh: false,
+			want:       true,
 		},
 		{
 			name:       "Do Not Allow Stale",
-			allowStale: false,
+			forceFresh: true,
+			want:       false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := rpc.ReadRequest{AllowStale: tt.allowStale}
+			req := rpc.ReadRequest{ForceFresh: tt.forceFresh}
 
 			require.True(t, req.IsRead())
-			assert.Equal(t, tt.allowStale, req.AllowStaleRead())
+			assert.Equal(t, tt.want, req.AllowStaleRead())
 		})
 	}
 }
