@@ -65,13 +65,14 @@ func (s *Snapshot) Nodes() (memdb.ResultIterator, error) {
 	return s.tx.Get("nodes", "id")
 }
 
+// Node restores a node.
 func (r *Restore) Node(idx uint64, node *Node) error {
 	return ensureNodeTx(r.tx, idx, node)
 }
 
 // Node returns a node with the given id or nil.
-func (d *Store) Node(id string) (uint64, *Node, error) {
-	tx := d.db.Txn(false)
+func (s *Store) Node(id string) (uint64, *Node, error) {
+	tx := s.db.Txn(false)
 	defer tx.Abort()
 
 	idx := maxIndex(tx, "nodes")
@@ -87,8 +88,8 @@ func (d *Store) Node(id string) (uint64, *Node, error) {
 
 // Nodes returns all the nodes as well as a watch channel that will be closed
 // when the nodes change.
-func (d *Store) Nodes(ws memdb.WatchSet) (uint64, []*Node, error) {
-	tx := d.db.Txn(false)
+func (s *Store) Nodes(ws memdb.WatchSet) (uint64, []*Node, error) {
+	tx := s.db.Txn(false)
 	defer tx.Abort()
 
 	idx := maxIndex(tx, "nodes")
@@ -107,8 +108,8 @@ func (d *Store) Nodes(ws memdb.WatchSet) (uint64, []*Node, error) {
 
 // EnsureNode inserts a node in the database. This is used by the FSM to
 // add and update nodes.
-func (d *Store) EnsureNode(idx uint64, node *Node) error {
-	tx := d.db.Txn(true)
+func (s *Store) EnsureNode(idx uint64, node *Node) error {
+	tx := s.db.Txn(true)
 	defer tx.Abort()
 
 	if err := ensureNodeTx(tx, idx, node); err != nil {
@@ -144,8 +145,8 @@ func ensureNodeTx(tx *memdb.Txn, idx uint64, node *Node) error {
 
 // DeleteNode deletes a node from the database with the given id. This is
 // used by the FSM to delete nodes.
-func (d *Store) DeleteNode(idx uint64, id string) error {
-	tx := d.db.Txn(true)
+func (s *Store) DeleteNode(idx uint64, id string) error {
+	tx := s.db.Txn(true)
 	defer tx.Abort()
 
 	node, err := tx.First("nodes", "id", id)

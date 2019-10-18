@@ -42,14 +42,14 @@ func New() (*Store, error) {
 
 // Abandon is used to signal that the given state store has been abandoned.
 // Calling this more than one time will panic.
-func (d *Store) Abandon() {
-	close(d.abandonCh)
+func (s *Store) Abandon() {
+	close(s.abandonCh)
 }
 
 // AbandonCh returns a channel you can wait on to know if the state store was
 // abandoned.
-func (d *Store) AbandonCh() <-chan struct{} {
-	return d.abandonCh
+func (s *Store) AbandonCh() <-chan struct{} {
+	return s.abandonCh
 }
 
 // Snapshot is used to create a point-in-time snapshot of the entire db.
@@ -98,14 +98,14 @@ type Restore struct {
 
 // Abort abandons the changes made by a restore. This or Commit should always be
 // called.
-func (s *Restore) Abort() {
-	s.tx.Abort()
+func (r *Restore) Abort() {
+	r.tx.Abort()
 }
 
 // Commit commits the changes made by a restore. This or Abort should always be
 // called.
-func (s *Restore) Commit() {
-	s.tx.Commit()
+func (r *Restore) Commit() {
+	r.tx.Commit()
 }
 
 // IndexEntry keeps a record of the last index per-table.
@@ -152,6 +152,7 @@ func maxIndex(tx *memdb.Txn, tables ...string) uint64 {
 	return max
 }
 
+// Indexes returns indexes for snapshotting.
 func (s *Snapshot) Indexes() (memdb.ResultIterator, error) {
 	iter, err := s.tx.Get("index", "id")
 	if err != nil {
@@ -160,9 +161,9 @@ func (s *Snapshot) Indexes() (memdb.ResultIterator, error) {
 	return iter, nil
 }
 
-// IndexRestore is used to restore an index
-func (s *Restore) Index(idx *IndexEntry) error {
-	if err := s.tx.Insert("index", idx); err != nil {
+// Index is used to restore an index
+func (r *Restore) Index(idx *IndexEntry) error {
+	if err := r.tx.Insert("index", idx); err != nil {
 		return fmt.Errorf("index insert failed: %v", err)
 	}
 	return nil

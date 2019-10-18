@@ -58,6 +58,7 @@ func (s *Server) Call(method string, req, resp interface{}) error {
 
 type queryFn func(memdb.WatchSet, *state.Store) error
 
+// Query runs the query function, respecting the request and response metadata.
 func (s *Server) Query(req *rpc2.ReadRequest, meta *rpc2.ResponseMeta, fn queryFn) error {
 	var timeout *time.Timer
 

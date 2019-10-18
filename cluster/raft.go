@@ -457,10 +457,10 @@ func (m *LeaderRoutineManager) Start() {
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	for _, routine := range m.routines {
 		m.wg.Add(1)
-		go func() {
+		go func(fn LeaderRoutine) {
 			defer m.wg.Done()
-			routine(m.ctx)
-		}()
+			fn(m.ctx)
+		}(routine)
 	}
 }
 
