@@ -19,6 +19,7 @@ const (
 // StateDelegate represents an object that can handle state.
 type StateDelegate interface {
 	Store() *state.Store
+	Forward(string, interface{}, interface{}) (bool, error)
 	Apply(t raftrpc.MessageType, msg interface{}) (interface{}, error)
 }
 

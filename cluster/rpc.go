@@ -29,6 +29,10 @@ func (d *agentStateDelegate) Store() *state.Store {
 	return d.agent.fsm.Store()
 }
 
+func (d *agentStateDelegate) Forward(method string, req, resp interface{}) (bool, error) {
+	return d.agent.forward(method, req, resp)
+}
+
 func (d *agentStateDelegate) Apply(t rpc2.MessageType, msg interface{}) (interface{}, error) {
 	return d.agent.raftApply(t, msg)
 }

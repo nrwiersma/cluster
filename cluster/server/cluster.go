@@ -14,6 +14,10 @@ type Cluster struct {
 
 // GetNodes gets the nodes known to the cluster.
 func (a *Cluster) GetNodes(req *rpc.NodesRequest, resp *rpc.NodesResponse) error {
+	if ok, err := a.srv.state.Forward("Cluster.GetNodes", req, resp); ok {
+		return err
+	}
+
 	filter, err := bexpr.CreateFilter(req.Filter, nil, resp.Nodes)
 	if err != nil {
 		return err

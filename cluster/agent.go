@@ -150,10 +150,6 @@ func (a *Agent) Members() []serf.Member {
 // and returns the error status. This is used to interact with the
 // cluster agent and its data.
 func (a *Agent) Call(method string, req, resp interface{}) error {
-	if ok, err := a.forward(method, req, resp); ok {
-		return err
-	}
-
 	return a.srv.Call(method, req, resp)
 }
 
