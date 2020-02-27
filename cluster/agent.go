@@ -161,6 +161,16 @@ func (a *Agent) Join(addrs ...string) error {
 	return nil
 }
 
+// RetryJoin joins the cluster using the given Serf addresses, retrying when unsuccessful.
+func (a *Agent) RetryJoin(addrs ...string) error {
+	// TODO: this needs to retry
+
+	if _, err := a.serf.Join(addrs, true); err != nil {
+		return fmt.Errorf("agent: error joining cluster: %w", err)
+	}
+	return nil
+}
+
 // Leave leaves the cluster gracefully.
 func (a *Agent) Leave() error {
 	numPeers, err := a.numPeers()

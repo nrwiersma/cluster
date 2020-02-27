@@ -47,9 +47,8 @@ func (a *Agent) eventHandler() {
 			case serf.EventMemberJoin:
 				a.nodeJoin(e.(serf.MemberEvent))
 				a.localMemberEvent(e.(serf.MemberEvent))
-			case serf.EventMemberReap:
-				a.localMemberEvent(e.(serf.MemberEvent))
-			case serf.EventMemberLeave, serf.EventMemberFailed:
+
+			case serf.EventMemberLeave, serf.EventMemberFailed, serf.EventMemberReap:
 				a.nodeFailed(e.(serf.MemberEvent))
 				a.localMemberEvent(e.(serf.MemberEvent))
 			}

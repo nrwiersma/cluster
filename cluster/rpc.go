@@ -90,17 +90,15 @@ func (a *Agent) forward(method string, req, resp interface{}) (bool, error) {
 	}
 
 	// If the request allows stale reads, lots it fall through to the current agent
-	if rpcReq, ok := req.(rpc.Request); ok {
-		if rpcReq.IsRead() && rpcReq.AllowStaleRead() {
-			return false, nil
-		}
+	if rpcReq, ok := req.(rpc.Request); ok && rpcReq.IsRead() && rpcReq.AllowStaleRead() {
+		return false, nil
 	}
 
-	//if err := a.connPool.RPC(leader.RPCAddr, method, req, resp); err != nil {
+	// if err := a.connPool.RPC(leader.RPCAddr, method, req, resp); err != nil {
 	//	// TODO: perhaps retry the request
 	//	return true, err
-	//}
-	//return true, err
+	// }
+	// return true, err
 	return false, nil
 }
 
@@ -174,11 +172,11 @@ func (l *RaftLayer) Dial(address raft.ServerAddress, timeout time.Duration) (net
 
 	// Write the Raft byte to set the mode
 	// TODO: add the raft rpc byte
-	//_, err = conn.Write([]byte{byte(pool.RPCRaft)})
-	//if err != nil {
+	// _, err = conn.Write([]byte{byte(pool.RPCRaft)})
+	// if err != nil {
 	//	conn.Close()
 	//	return nil, err
-	//}
+	// }
 	return conn, err
 }
 
